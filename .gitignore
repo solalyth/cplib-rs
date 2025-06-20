@@ -1,0 +1,7 @@
+/.vscode/
+!/.vscode/templates.code-snippets
+
+/src/
+/target/
+
+/out.txt
