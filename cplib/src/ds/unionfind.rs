@@ -1,5 +1,24 @@
-pub use crate::cplib::abstracts::{Group, Nop};
+use std::fmt::Debug;
 use crate::cplib::util::func::join;
+
+pub trait Abelian {
+    type T: Clone + Eq;
+    fn e() -> Self::T;
+    fn add(l: &Self::T, r: &Self::T) -> Self::T;
+    fn inv(x: &Self::T) -> Self::T;
+
+    fn sub(l: &Self::T, r: &Self::T) -> Self::T { Self::add(l, &Self::inv(r)) }
+}
+
+pub struct Nop;
+impl Abelian for Nop {
+    type T = ();
+    fn e() {}
+    fn add(_: &(), _: &()) {}
+    fn inv(_: &()) {}
+}
+
+
 
 /// Potential 付き Union Find (union by size, path compression)
 /// 
@@ -16,7 +35,7 @@ use crate::cplib::util::func::join;
 /// # 例題
 /// 
 /// - https://atcoder.jp/contests/abc328/tasks/abc328_f
-pub struct UnionFind<Op: Group> {
+pub struct UnionFind<Op: Abelian> {
     par: Vec<usize>,
     size: Vec<usize>,
     diff: Vec<Op::T>,
@@ -29,9 +48,18 @@ impl UnionFind<Nop> {
     pub fn new_nop(len: usize) -> Self { Self::new(len) }
 }
 
-impl<Op: Group> UnionFind<Op> {
+impl<Op: Abelian> UnionFind<Op> {
     pub fn new(len: usize) -> Self {
         UnionFind { par: (0..len).collect(), size: vec![1; len], diff: vec![Op::e(); len], next: (0..len).collect() }
+    }
+    
+    pub fn clear(&mut self) {
+        for i in 0..self.len() {
+            self.par[i] = i;
+            self.size[i] = 1;
+            self.diff[i] = Op::e();
+            self.next[i] = i;
+        }
     }
     
     pub fn extend(&mut self, len: usize) {
@@ -80,16 +108,16 @@ impl<Op: Group> UnionFind<Op> {
         Some((v, u))
     }
     
+    /// `res[i] = { j | leader(j) == i }`
     pub fn groups(&mut self) -> Vec<Vec<usize>> {
         let mut res = crate::nest![void; self.len()];
         for i in 0..self.len() { res[self.leader(i)].push(i); }
-        res.retain(|v| v.len() != 0);
         res
     }
     
     pub fn group(&self, i: usize) -> Vec<usize> {
-        let (mut res, mut j) = (vec![i], self.par[i]);
-        while j != i { res.push(j); j = self.par[j]; }
+        let (mut res, mut j) = (vec![i], self.next[i]);
+        while j != i { res.push(j); j = self.next[j]; }
         res
     }
     
@@ -98,13 +126,13 @@ impl<Op: Group> UnionFind<Op> {
     }
 }
 
-impl<Op: Group> Clone for UnionFind<Op> {
+impl<Op: Abelian> Clone for UnionFind<Op> {
     fn clone(&self) -> Self {
         Self { par: self.par.clone(), size: self.size.clone(), diff: self.diff.clone(), next: self.next.clone() }
     }
 }
 
-impl<Op: Group> std::fmt::Debug for UnionFind<Op> {
+impl<Op: Abelian> std::fmt::Debug for UnionFind<Op> where Op::T: Debug {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut uf = self.clone();
         let g = uf.groups().into_iter().map(|s| {
