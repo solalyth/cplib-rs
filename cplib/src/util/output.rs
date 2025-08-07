@@ -1,93 +1,107 @@
-#![allow(non_camel_case_types)]
+//! 高速出力
 
-use std::{mem::{replace, transmute}, ops::{Not, Shl}, sync::{Mutex, MutexGuard, OnceLock}};
+#![allow(static_mut_refs)]
 
-static INTERNAL: OnceLock<Mutex<Internal>> = OnceLock::new();
+use std::{mem::replace, ops::{Not, Shl}, fmt::Write};
+
+static mut BUFFER: Buffer = Buffer { buf: String::new(), endp: false, prev: Previous::LineHead };
 #[allow(non_upper_case_globals)]
-pub static out: Printer = Printer(&INTERNAL);
+pub static out: Output = Output;
 
-pub struct Internal {
+
+/// # Fields
+/// 
+/// `endp`: `out << end;` で出力するならば `true`
+pub struct Buffer {
     buf: String,
-    endf: EndFlag,
-    prvf: PreviousFlag
+    endp: bool,
+    prev: Previous,
 }
 
-#[derive(PartialEq)]
-pub enum EndFlag {
-    /// `Printer << end;` しても何もしません。用途無い。
-    DoNothing,
-    /// `Printer << end;` するたびに改行を挿入します。出力はしません。
-    LineFeed,
-    /// `Printer << end;` するたびに出力します。デバッグ・インタラクティブ問題向け。
-    Print
-}
-
-use self::PreviousFlag::*;
-#[derive(PartialEq, Eq, Clone, Copy)]
-enum PreviousFlag {
-    Space,
-    NoSpace,
-    LineHead,
-}
-
-pub struct end;
-
-
-#[derive(Clone, Copy)]
-pub struct Printer<const SP: bool = true>(&'static OnceLock<Mutex<Internal>>);
-
-impl<const SP: bool> Printer<SP> {
-    pub fn init(&self, endf: EndFlag) {
-        let is_err = self.0.set(Mutex::new(Internal { buf: String::new(), endf, prvf: LineHead })).is_err();
-        if is_err { panic!("[@printer] Error: Second call of Printer::init"); }
-    }
-    
-    fn get(&self) -> MutexGuard<Internal> { self.0.get().unwrap().lock().unwrap() }
-    fn push(&self, v: impl PrinterDisplay) { self.get().push(v, SP); }
-    pub fn print(&self) { self.get().print(); }
-}
-
-impl Internal {
-    fn push(&mut self, v: impl PrinterDisplay, sp: bool) {
-        let prvf = replace(&mut self.prvf, if sp {Space} else {NoSpace});
-        let buf = &mut self.buf;
-        if prvf != LineHead && (prvf == Space || sp) { *buf += " "; }
-        v.pdisp(sp, buf);
-    }
+impl Buffer {
+    const LEN: usize = 16*1024*1024; // 16MiB, 4e6 chars
     
     fn print(&mut self) {
-        let prvf = replace(&mut self.prvf, LineHead);
-        let buf = &mut self.buf;
-        if prvf == LineHead { buf.pop(); }
-        
-        if buf.is_empty() { return; }
-        
+        if replace(&mut self.prev, Previous::LineHead) == Previous::LineHead { self.buf.pop(); }
+        if self.buf.is_empty() {
+            if !crate::cplib::SUBMISSION { println!("\x1b[32m>> (empty)\x1b[0m"); }
+            return;
+        }
         if crate::cplib::SUBMISSION {
-            println!("{buf}");
+            println!("{}", self.buf);
         } else {
             eprint!("\x1b[32m");
-            for (i, s) in buf.split('\n').enumerate() {
-                eprint!("{}", if i == 0 {">> "} else {"   "});
+            for s in self.buf.split('\n') {
+                eprint!(">> ");
                 println!("{s}");
             }
             eprint!("\x1b[0m");
         }
-        buf.clear();
+        self.buf.clear();
+    }
+    
+    fn space(&mut self, sp: bool) {
+        let prev = replace(&mut self.prev, if sp {Previous::Space} else {Previous::NoSpace});
+        if (sp || prev == Previous::Space) && prev != Previous::LineHead { self.buf.push(' '); }
     }
 }
 
-impl<T: PrinterDisplay, const SP: bool> Shl<T> for Printer<SP> { type Output = Self; fn shl(self, v: T) -> Self { self.push(v); self } }
-impl Not for Printer<true> { type Output = Printer<false>; fn not(self) -> Printer<false> { unsafe { transmute(self) } } }
 
-impl<const SP: bool> Shl<end> for Printer<SP> {
+#[derive(Clone, Copy)]
+pub struct Output<const SP: bool = true>;
+
+impl Output {
+    pub fn init(endp: bool) {
+        unsafe {
+            BUFFER.buf.reserve(Buffer::LEN);
+            BUFFER.endp = endp;
+        }
+    }
+    pub fn print() { unsafe { BUFFER.print(); } }
+}
+
+impl<const SP: bool> Output<SP> {
+    pub fn space() { unsafe { if BUFFER.prev == Previous::NoSpace { BUFFER.prev = Previous::Space; } } }
+    fn push<T: Primitive>(v: &T) {
+        unsafe {
+            BUFFER.space(SP);
+            v.fmt(&mut BUFFER.buf);
+        }
+    }
+}
+
+impl Not for Output {
+    type Output = Output<false>;
+    fn not(self) -> Self::Output { Output }
+}
+
+impl<const SP: bool, T: Primitive> Shl<T> for Output<SP> {
     type Output = Self;
-    fn shl(self, _: end) -> Self {
-        let mut itn = self.0.get().unwrap().lock().unwrap();
-        use EndFlag::*;
-        match itn.endf {
-            Print => { itn.print(); }
-            LineFeed => { itn.buf += "\n"; itn.prvf = LineHead; }
-            DoNothing => {}
+    fn shl(self, rhs: T) -> Self::Output { Self::push(&rhs); self }
+}
+
+macro_rules! impl_for_slices {
+    ($t:ty) => {
+        impl<const SP: bool, T: Primitive> Shl<$t> for Output<SP> {
+            type Output = Self;
+            fn shl(self, rhs: $t) -> Self::Output { for v in rhs { Self::push(v); } self }
+        }
+    };
+    ($($t:ty),+) => { $(impl_for_slices!($t);)+ }
+}
+impl_for_slices!(&[T], &Vec<T>);
+
+
+impl<const SP: bool> Shl<end> for Output<SP> {
+    type Output = Self;
+    fn shl(self, _: end) -> Self::Output {
+        unsafe {
+            if BUFFER.endp {
+                BUFFER.print();
+            } else {
+                BUFFER.buf += "\n";
+                BUFFER.prev = Previous::LineHead;
+            }
         }
         self
     }
@@ -95,21 +109,44 @@ impl<const SP: bool> Shl<end> for Printer<SP> {
 
 
 
-/// `Printer << value` で表示可能であることを表す。
-trait PrinterDisplay { fn pdisp(&self, sp: bool, buf: &mut String); }
 
-/// `PrinterDisplay` を `Display` に fallback させる
-macro_rules! fall { ($($t:ty),+) => { $( impl PrinterDisplay for $t { fn pdisp(&self, _: bool, buf: &mut String) { *buf += &format!("{self}"); } } )+ }; }
-fall!( u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, f32, f64/* , ac_library::ModInt998244353, ac_library::ModInt1000000007  */);
+#[allow(non_camel_case_types)]
+pub struct end;
 
-impl PrinterDisplay for char { fn pdisp(&self, _: bool, buf: &mut String) { buf.push(*self); } }
-impl PrinterDisplay for &str { fn pdisp(&self, _: bool, buf: &mut String) { buf.push_str(self); } }
-impl PrinterDisplay for &String { fn pdisp(&self, _: bool, buf: &mut String) { buf.push_str(self); } }
-impl PrinterDisplay for bool { fn pdisp(&self, _: bool, buf: &mut String) { *buf += if *self {"Yes"} else{ "No" }; } }
+#[derive(PartialEq, Eq, Clone, Copy)]
+enum Previous {
+    Space,
+    NoSpace,
+    LineHead,
+}
 
-impl<T: PrinterDisplay> PrinterDisplay for &[T] {
-    fn pdisp(&self, sp: bool, buf: &mut String) {
-        for e in *self { e.pdisp(sp, buf); if sp { *buf += " "; } }
-        if sp && !self.is_empty() { buf.pop(); }
+
+
+
+trait Primitive {
+    fn fmt(&self, buf: &mut String);
+}
+
+macro_rules! impl_primitive {
+    ($t:ty) => {
+        impl Primitive for $t {
+            fn fmt(&self, buf: &mut String) {
+                write!(buf, "{self}").ok();
+            }
+        }
+    };
+    ($($t:ty),+) => { $(impl_primitive!($t);)+ }
+}
+impl_primitive!(char, u32, u64, u128, usize, i32, i64, i128, f32, f64, &str, &String);
+
+impl Primitive for u8 {
+    fn fmt(&self, buf: &mut String) {
+        buf.push(*self as char);
+    }
+}
+
+impl Primitive for bool {
+    fn fmt(&self, buf: &mut String) {
+        *buf += if *self { "Yes" } else { "No" };
     }
 }

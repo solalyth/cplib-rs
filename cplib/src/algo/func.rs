@@ -14,7 +14,7 @@ pub fn prev_permutation<T: Ord>(v: &mut [T]) -> bool {
     true
 }
 
-pub fn run_length<T: Eq>(iter: impl Iterator<Item = T>) -> Vec<(T, usize)> {
+pub fn run_length<T: Eq>(iter: impl IntoIterator<Item = T>) -> Vec<(T, usize)> {
     let mut res = vec![];
     for t in iter {
         let Some(l) = res.last_mut() else { res.push((t, 1)); continue; };

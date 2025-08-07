@@ -6,11 +6,12 @@ mod cplib {
     import!("prelude");
     
     pub mod ds {
-        // import!("ds/unionfind");
+        import!("ds/unionfind");
         // import!("ds/foldable_deque");
-        // import!("ds/segtree");
+        import!("ds/segtree");
         // import!("ds/splay_tree");
-        // import!("ds/sparse_segtree");
+        import!("ds/sparse_segtree");
+        // import!("ds/ordered");
         
         // import!("ds/multiset");
     }
@@ -20,7 +21,7 @@ mod cplib {
         // import!("algo/bellman_ford");
         // import!("algo/warshall_floyd");
         // import!("algo/lcs");
-        // import!("algo/func");
+        import!("algo/func");
     }
     
     pub mod graph {
@@ -30,9 +31,9 @@ mod cplib {
     import!("abstracts");
     
     pub mod math {
-        // import!("math/func");
+        import!("math/func");
         import!("math/prime");
-        // import!("math/modtable");
+        import!("math/modtable");
         // import!("math/montgomery");
     }
     

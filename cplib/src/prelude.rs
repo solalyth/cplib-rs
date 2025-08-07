@@ -5,8 +5,10 @@ pub use std::{
 };
 
 pub use crate::cplib::{
+    *,
+    SUBMISSION,
     ds::segtree::SegtreeOp,
     util::{
-        output::{out, end, EndFlag}, traits::*, func::binary_search
-    }
+        output::{Output, out, end}, traits::*, func::binary_search
+    },
 };

@@ -1,39 +1,57 @@
-// #[macro_export]
-// macro_rules! assume {
-//     ($cond:expr) => {
-//         if !$cond {
-//             unsafe { std::hint::unreachable_unchecked() }
-//         }
-//     };
-// }
-
 #[macro_export]
 macro_rules! epr {
     ($($args:tt)*) => {
         if !$crate::SUBMISSION {
-            let mut tmp = format!($($args)*);
-            if 500 < tmp.len() {
-                tmp.truncate(500); tmp += "...";
-            }
+            #[allow(unused_mut)]
+            let tmp = format!($($args)*);
+            let tmp = tmp.replace("18446744073709551615", "MAX").replace("9223372036854775807", "MAX");
+            // if 500 < tmp.len() {
+            //     tmp.truncate(500); tmp += "...";
+            // }
             eprintln!("\x1b[31m{tmp}\x1b[0m");
         }
     }
 }
 
 #[macro_export]
-macro_rules! epr_repr {
-    ($bef:expr, $aft: expr; $($args:tt)*) => {
+macro_rules! table {
+    ($v:expr) => {
         if !$crate::SUBMISSION {
-            let mut tmp = format!($($args)*).replace(&$bef.to_string(), &$aft.to_string());
-            if 500 < tmp.len() {
-                tmp.truncate(500); tmp += "...";
+            use std::fmt::Write;
+            let mut lmax = $v.iter().map(|v| v.iter().map(|e| format!("{e}").len()).max().unwrap_or(0)).max().unwrap_or(0);
+            let mut tmp = String::new();
+            for v in &$v {
+                tmp += "    [ ";
+                for &e in v {
+                    write!(&mut tmp, "{e: >lmax$}, ");
+                }
+                tmp.pop(); tmp.pop();
+                tmp += "]\n";
             }
-            eprintln!("\x1b[31m{tmp}\x1b[0m");
+            eprintln!("\x1b[38;5;208m{} = [\n{tmp}]\x1b[0m", stringify!($v));
         }
-    }
+    };
+    ($v:expr, $inf:expr) => {
+        if !$crate::SUBMISSION {
+            use std::fmt::Write;
+            let mut lmax = $v.iter().map(|v| v.iter().map(|e| format!("{e}").len()).max().unwrap_or(0)).max().unwrap_or(0).max(3);
+            let mut tmp = String::new();
+            for v in &$v {
+                tmp += "    [ ";
+                for &e in v {
+                    if e < $inf {
+                        write!(&mut tmp, "{e: >lmax$}, ");
+                    } else {
+                        write!(&mut tmp, "{: >lmax$}, ", "inf");
+                    }
+                }
+                tmp.pop(); tmp.pop();
+                tmp += "]\n";
+            }
+            eprintln!("\x1b[38;5;208m{} = [\n{tmp}]\x1b[0m", stringify!($v));
+        }
+    };
 }
-
-
 
 #[macro_export]
 macro_rules! oj_local {
@@ -50,12 +68,13 @@ macro_rules! oj_local {
 /// `!Clone` な要素を入れるときは `void` は出来ない
 #[macro_export]
 macro_rules! nest {
-    [void; $n:expr] => { vec![vec![]; $n] };
-    [void; $n:expr $(;$m:expr)+] => { vec![nest![void$(;$m)+]; $n] };
+    [void; $n:expr] => { std::vec![std::vec![]; $n] };
+    [void; $n:expr $(;$m:expr)+] => { std::vec![nest![void$(;$m)+]; $n] };
     
-    [] => { vec![] };
-    [$e:expr; $n:expr] => { vec![$e; $n] };
-    [$e:expr; $n:expr $(;$m:expr)+] => { vec![nest![$e$(;$m)+]; $n] };
+    // [] => { std::vec![] };
+    [$($v:expr),*] => { std::vec![$($v),*] };
+    [$e:expr; $n:expr] => { std::vec![$e; $n] };
+    [$e:expr; $n:expr $(;$m:expr)+] => { std::vec![nest![$e$(;$m)+]; $n] };
 }
 
 
@@ -87,6 +106,36 @@ macro_rules! chmax {
 }
 
 
+/// `0^0 == 1` とする。
+#[macro_export]
+macro_rules! safe_pow {
+    ($v:expr, $e:expr) => { {
+        let (mut v, mut e, mut res) = ($v, $e, 1);
+        if e == 0 {1} else if v == 0 {0} else {
+            while e != 0 {
+                if e%2 == 1 {
+                    res = res.saturating_mul(v);
+                }
+                v = v.saturating_mul(v);
+                e /= 2;
+            }
+            res
+        }
+    } };
+    ($v:expr, $e:expr, $m:expr) => { {
+        let (mut v, mut e, m, mut res) = ($v, $e, $m, 1);
+        if e == 0 {1%m} else if v == 0 {0} else {
+            while e != 0 {
+                if e%2 == 1 {
+                    res = (res*v)%m;
+                }
+                v = v*v%m;
+                e /= 2;
+            }
+            res.rem_euclid(m)
+        }
+    } }
+}
 
 
 /* macro_rules! impl_for {

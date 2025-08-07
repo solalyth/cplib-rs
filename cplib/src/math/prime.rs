@@ -73,6 +73,19 @@ impl LpfSieve {
         self.fold(n, vec![], |v, p, e| { v.push((p, e)); } )
     }
     
+    pub fn factorize_big(&self, mut n: usize) -> Vec<(usize, usize)> {
+        assert_ne!(n, 0);
+        let mut res = vec![];
+        for &p in &self.primes {
+            let mut cnt = 0;
+            while n%p == 0 { cnt += 1; n /= p; }
+            if cnt != 0 { res.push((p, cnt)); }
+            if n < p*p { break; }
+        }
+        if n != 1 { res.push((n, 1)); }
+        res
+    }
+    
     /// 約数を返す。昇順かは保証されていない。
     pub fn divisors(&self, n: usize) -> Vec<usize> {
         assert!(n != 0);

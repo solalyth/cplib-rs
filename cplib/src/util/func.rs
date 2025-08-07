@@ -2,6 +2,16 @@ use std::ops::{RangeBounds, Bound};
 
 
 
+pub fn partition_point(pred: impl Fn(usize) -> bool) -> usize {
+    let (mut ok, mut ng) = (0, 1);
+    while pred(ng) { (ok, ng) = (ng, ng*2); }
+    while ng-ok > 1 {
+        let x = ok+(ng-ok)/2;
+        if pred(x) { ok = x; } else { ng = x; }
+    }
+    ok
+}
+
 pub fn binary_search(low: usize, high: usize) -> Option<usize> {
     if 1 < high.wrapping_sub(low) { Some(low.wrapping_add(high)/2) } else { None }
 }

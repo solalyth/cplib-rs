@@ -1,8 +1,7 @@
 pub use {
     proconio::{
         input, input_interactive,
-        marker::{Bytes as bytes, Chars as chars, Usize1 as u1},
-        source::once::OnceSource,
+        marker::{Bytes as bytes, Chars as chars, Usize1 as u1}
     },
     itertools::{Itertools, iproduct, izip},
     superslice::Ext,
@@ -11,3 +10,8 @@ pub use {
     
     rand
 };
+
+#[macro_export]
+macro_rules! input_one {
+    () => { { input! { x: usize } x } };
+}

@@ -1,11 +1,12 @@
-use std::{cell::Cell, cmp::Ordering, fmt::{Debug, Display}, ops::{Deref, DerefMut}, ptr::NonNull};
+use std::{cell::Cell, cmp::Ordering, fmt::Debug, ops::{Bound, Deref, DerefMut, RangeBounds}, ptr::NonNull};
+use crate::cplib::util::func::to_bounds;
 
 // use crate::util::func::to_bounds;
 
 pub trait OrderedOp {
-    type Key;
-    type Value;
-    type Acc;
+    type Key: Debug;
+    type Value: Debug;
+    type Acc: Clone;
     
     fn cmp_key(l: &Self::Key, r: &Self::Key) -> Ordering;
     fn to_acc(v: &Self::Value) -> Self::Acc;
@@ -20,25 +21,28 @@ pub struct Ordered<Op: OrderedOp>(Cell<Option<NodeRef<Op>>>);
 impl<Op: OrderedOp> Ordered<Op> {
     pub fn new() -> Self { Self(None.into()) }
     pub fn is_empty(&self) -> bool { self.0.get().is_none() }
-    pub fn len(&self) -> usize { self.0.get().map_or(0, |p| p.cnt()) }
-    /// index of `root` と等しい。
-    pub fn len_left(&self) -> usize { self.0.get().map_or(0, |p| p.cnt.0) }
-    pub fn len_right(&self) -> usize { self.0.get().map_or(0, |p| p.cnt.1) }
+    pub fn len(&self) -> usize { self.0.get().map_or(0, |r| r.cnt()) }
     
-    /// # Panics
-    /// 
-    /// if `Ordered` is empty.
-    pub fn get_root(&self) -> &Node<Op> {
-        unsafe { self.0.get().unwrap().0.as_ref() }
+    fn splay(&self, ptr: NodeRef<Op>) {
+        ptr.splay();
+        self.0.set(Some(ptr));
     }
     
     /// # Panics
     /// 
     /// if `Ordered` is empty.
-    pub fn set_root(&self, f: impl FnOnce(&mut Op::Value)) {
-        let mut ptr = self.0.get().unwrap();
-        f(&mut ptr.value);
-        ptr.update();
+    pub fn root(&self) -> &Op::Value {
+        unsafe { &self.0.get().unwrap().0.as_ref().value }
+    }
+    
+    /// # Panics
+    /// 
+    /// if `Ordered` is empty.
+    pub fn root_mut<T>(&mut self, f: impl FnOnce(&mut Op::Value) -> T) -> T {
+        let mut r = self.0.get().unwrap();
+        let res = f(&mut r.value);
+        r.update();
+        res
     }
     
     /// `idx` 番目のノードを root にする。
@@ -52,12 +56,13 @@ impl<Op: OrderedOp> Ordered<Op> {
         loop {
             match idx.cmp(&ptr.cnt.0) {
                 Ordering::Less => { ptr = ptr.child[0].unwrap(); }
-                Ordering::Equal => { ptr.splay(); return; }
+                Ordering::Equal => { self.splay(ptr); return; }
                 Ordering::Greater => { idx -= ptr.cnt.0+1; ptr = ptr.child[1].unwrap(); }
             }
         }
     }
     
+    /// `pred(idx-1) == true && pred(idx) = false` となる `idx` を返す。
     pub fn partition_point(&self, pred: impl Fn(&Op::Key) -> bool) -> usize {
         let Some(mut ptr) = self.0.get() else { return 0; };
         let mut tmp = None;
@@ -66,32 +71,73 @@ impl<Op: OrderedOp> Ordered<Op> {
             if !pos { tmp = Some(ptr); }
             if let Some(c) = ptr.child[pos as usize] { ptr = c; } else { break; }
         }
-        let root = tmp.unwrap_or(ptr);
-        root.splay();
-        self.0.set(Some(root));
-        root.cnt.0 + root.child[1].is_none() as usize
+        let ptr = tmp.unwrap_or(ptr);
+        self.splay(ptr);
+        ptr.cnt.0 - tmp.is_none() as usize
     }
     
-    /// lower bound を求める。`#{ elem | elem.key < key }` に等しい。
+    fn split_root(self) -> [Self; 2] {
+        let Some(mut r) = self.0.get() else { return [Self::new(), self]; };
+        let Some(mut l) = std::mem::replace(&mut r.child[0], None) else { return [Self::new(), self]; };
+        l.parent = None;
+        r.update();
+        [Ordered(Some(l).into()), self]
+    }
+    
+    /// `[self[..idx], self[idx..]]` に分割する。はみ出してもよい。
+    pub fn split_at(self, idx: usize) -> [Self; 2] {
+        if idx == 0 { return [Self::new(), self]; }
+        if self.len() <= idx { return [self, Self::new()]; }
+        self.nth(idx);
+        self.split_root()
+    }
+    
+    pub fn split3_key(self, range: impl RangeBounds<Op::Key>) -> [Self; 3] {
+        let mid = Ordered(self.0.clone());
+        let idx = match range.end_bound() {
+            Bound::Included(x) => mid.upper_bound(x),
+            Bound::Excluded(x) => mid.lower_bound(x),
+            Bound::Unbounded => { mid.last(); mid.len() }
+        };
+        let [mid, r] = if idx != mid.len() { mid.split_root() } else { [mid, Self::new()] };
+        match range.start_bound() {
+            Bound::Included(x) => { mid.lower_bound(x); },
+            Bound::Excluded(x) => { mid.upper_bound(x); },
+            Bound::Unbounded => { mid.first(); }
+        };
+        let [l, mid] = mid.split_root();
+        [l, mid, r]
+    }
+    
+    pub fn merge(l: Self, r: Self) -> Self {
+        r.first();
+        let Some(rr) = r.0.get() else { return l; };
+        rr.set_child(l.0.get(), false);
+        rr.update();
+        r
+    }
+    
+    
+    
+    /// lower bound を求める。
     /// 
     /// `A[root-1] < key <= A[root]` となる `root` が存在すれば根にする。存在しない場合は、一番右のノードを根にする。
     pub fn lower_bound(&self, key: &Op::Key) -> usize {
         self.partition_point(|k| Op::cmp_key(k, key).is_lt())
     }
     
-    /// upper bound を求める。`#{ elem | elem.key <= key }` に等しい。
+    /// upper bound を求める。
     /// 
     /// `A[root-1] <= key < A[root]` となる `root` が存在すれば根にする。存在しない場合は、一番右のノードを根にする。
     pub fn upper_bound(&self, key: &Op::Key) -> usize {
         self.partition_point(|k| Op::cmp_key(k, key).is_le())
     }
     
-    pub fn insert(&mut self, key: Op::Key, value: Op::Value, replace: bool) {
+    /// `key` が等しい区間の一番左に挿入する。
+    pub fn insert(&mut self, key: Op::Key, value: Op::Value) {
         let idx = self.lower_bound(&key);
-        let Some(mut p) = self.0.get() else { self.0.set(Some(NodeRef::new(key, value))); return; };
-        if replace && Op::cmp_key(&key, &p.key).is_eq() { p.value = value; p.update(); return; }
         let node = NodeRef::new(key, value);
-        // node が最右に来るべきとき
+        let Some(mut p) = self.0.get() else { self.0.set(Some(node)); return; };
         if idx == self.len() { node.set_child(Some(p), false); node.update(); self.0.set(Some(node)); return; }
         node.set_child(p.child[0], false);
         node.set_child(Some(p), true);
@@ -100,50 +146,69 @@ impl<Op: OrderedOp> Ordered<Op> {
         self.0.set(Some(node));
     }
     
+    pub fn insert_replace(&mut self, key: Op::Key, init: Op::Value, update: impl FnOnce(&mut Op::Value)) {
+        let idx = self.lower_bound(&key);
+        let Some(mut p) = self.0.get() else { self.0.set(Some(NodeRef::new(key, init))); return; };
+        if Op::cmp_key(&key, &p.key).is_eq() { update(&mut p.value); p.update(); return; }
+
+        let node = NodeRef::new(key, init);
+        if idx == self.len() { node.set_child(Some(p), false); node.update(); self.0.set(Some(node)); return; }
+        node.set_child(p.child[0], false);
+        node.set_child(Some(p), true);
+        p.child[0] = None;
+        p.update(); node.update();
+        self.0.set(Some(node));
+    }
+    
+    pub fn fold(&self, range: impl RangeBounds<usize>) -> Option<Op::Acc> {
+        let [l, r] = to_bounds(range, self.len());
+        if r == 0 { return None; }
+        let [mid, r] = Ordered(self.0.clone()).split_at(r);
+        let [l, mid] = mid.split_at(l);
+        let res = mid.0.get().unwrap().acc.clone();
+        self.0.set(Ordered::merge(Ordered::merge(l, mid), r).0.get());
+        Some(res)
+    }
+    
+    pub fn fold_key(&self, range: impl RangeBounds<Op::Key>) -> Option<Op::Acc> {
+        let [l, mid, r] = Ordered(self.0.clone()).split3_key(range);
+        let res = mid.0.get().unwrap().acc.clone();
+        self.0.set(Ordered::merge(Ordered::merge(l, mid), r).0.get());
+        Some(res)
+    }
+    
+    
+    
     pub fn next(&mut self) -> bool {
         let Some(p) = self.0.get() else { return false; };
-        let Some(mut ptr) = p.child[1] else { return false; };
-        while let Some(c) = ptr.child[0].or(ptr.child[1]) { ptr = c; }
-        ptr.splay();
-        self.0.set(Some(ptr));
+        let Some(ptr) = p.child[1] else { return false; };
+        self.splay(ptr.first());
         true
     }
     
-    pub fn next_back(&mut self) -> bool {
+    pub fn back(&mut self) -> bool {
         let Some(p) = self.0.get() else { return false; };
-        let Some(mut ptr) = p.child[0] else { return false; };
-        while let Some(c) = ptr.child[1].or(ptr.child[0]) { ptr = c; }
-        ptr.splay();
-        self.0.set(Some(ptr));
+        let Some(ptr) = p.child[0] else { return false; };
+        self.splay(ptr.last());
         true
     }
     
-    pub fn from_iter(replace: bool, iter: impl Iterator<Item = (Op::Key, Op::Value)>) -> Self {
-        let mut res = Ordered::new();
-        for (k, v) in iter { res.insert(k, v, replace); }
-        res
+    pub fn first(&self) {
+        let Some(mut ptr) = self.0.get() else { return; };
+        ptr = ptr.first();
+        self.splay(ptr);
+    }
+
+    pub fn last(&self) {
+        let Some(mut ptr) = self.0.get() else { return; };
+        ptr = ptr.last();
+        self.splay(ptr);
     }
 }
 
-impl<Op: OrderedOp> Debug for Ordered<Op> where Op::Key: Display, Op::Value: Display {
+impl<Op: OrderedOp> Debug for Ordered<Op> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Some(p) = self.0.get() else { return write!(f, "Empty"); };
-        let mut li = String::new();
-        let mut stk = vec![(p, true)];
-        while let Some((p, is_in)) = stk.pop() {
-            if is_in {
-                if let Some(r) = p.child[1] { stk.push((r, true)); }
-                stk.push((p, false));
-                if let Some(l) = p.child[0] { stk.push((l, true)); }
-            } else {
-                li += &format!(", {}({})", p.value, p.key);
-            }
-        }
-        if li.is_empty() {
-            write!(f, "empty")
-        } else {
-            write!(f, "[{}]", &li[2..])
-        }
+        write!(f, "{}", debug(self.0.get(), f.alternate()))
     }
 }
 
@@ -157,6 +222,7 @@ pub struct Node<Op: OrderedOp> {
     pub key: Op::Key,
     pub value: Op::Value,
     pub acc: Op::Acc,
+    /// (左子のサイズ, 右子のサイズ)
     pub cnt: (usize, usize)
 }
 
@@ -176,36 +242,15 @@ impl<Op: OrderedOp> NodeRef<Op> {
         if let Some(mut c) = c { c.parent = Some(self); }
     }
     
-    // #[allow(dead_code)]
-    // fn disjoint_left(mut root: Self) -> Option<Self> {
-    //     let Some(mut l) = replace(&mut root.child[0], None) else { return None; };
-    //     l.parent = None;
-    //     root.update();
-    //     l.update();
-    //     Some(l)
-    // }
-    
-    // #[allow(dead_code)]
-    // fn disjoint_right(mut root: Self) -> Option<Self> {
-    //     let Some(mut r) = replace(&mut root.child[1], None) else { return None; };
-    //     r.parent = None;
-    //     root.update();
-    //     r.update();
-    //     Some(r)
-    // }
-    
-    
-    
-    
-    
-    
     /// `p` の位置に `self` が来るよう rotate する。
     /// 
     /// # Panics
     /// 
     /// if `self.parent == None`
     fn rotate(mut self, p: Self, pos: bool) {
+        // todo
         self.parent = p.parent;
+        if let Some(pp) = p.parent { pp.set_child(Some(self), pp.child[1] == Some(p)); }
         p.set_child(self.child[!pos as usize], pos);
         self.set_child(Some(p), !pos);
         p.update(); self.update();
@@ -239,8 +284,18 @@ impl<Op: OrderedOp> NodeRef<Op> {
             self.acc = Op::prod_acc(&self.acc, &c.acc);
         }
     }
+    
+    
+    fn first(mut self) -> NodeRef<Op> {
+        while let Some(c) = self.child[0] { self = c; }
+        self
+    }
+    
+    fn last(mut self) -> NodeRef<Op> {
+        while let Some(c) = self.child[1] { self = c; }
+        self
+    }
 }
-
 
 
 impl<Op: OrderedOp> Deref for NodeRef<Op> {
@@ -259,3 +314,31 @@ impl<Op: OrderedOp> PartialEq for NodeRef<Op> {
     fn eq(&self, other: &Self) -> bool { self.0 == other.0 }
 }
 impl<Op: OrderedOp> Eq for NodeRef<Op> {}
+
+
+
+fn debug<Op: OrderedOp>(ptr: Option<NodeRef<Op>>, alt: bool) -> String where Op::Key: Debug, Op::Value: Debug {
+    let mut li = String::new();
+    let Some(p) = ptr else { return String::from("[]"); };
+    let mut stk = vec![(p, true, 0)];
+    while let Some((p, is_in, indent)) = stk.pop() {
+        if is_in {
+            if let Some(r) = p.child[1] { stk.push((r, true, indent+1)); }
+            stk.push((p, false, indent));
+            if let Some(l) = p.child[0] { stk.push((l, true, indent+1)); }
+        } else {
+            if alt {
+                li += "\n";
+                for _ in 0..indent { li += "    "; }
+                li += &format!("key={:?}, value={:?}", p.key, p.value);
+            } else {
+                li += &format!("{:?}: {:?}, ", p.key, p.value);
+            }
+        }
+    }
+    if alt {
+        li.remove(0); li
+    } else {
+        format!("{{{}}}", &li[..li.len()-2])
+    }
+}
