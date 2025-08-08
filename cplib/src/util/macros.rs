@@ -62,21 +62,19 @@ macro_rules! oj_local {
 
 
 
-/// `nest!(void; 2; 3) ... vec[0..2][0..3]: [[vec![]; 3]; 2]`  
-/// `nest!(init; 2; 3) ... vec[0..2][0..3]: [[init; 3]; 2]`
+/// `nest!(void; 2; 3) = vec[0..2][0..3]: [[vec![]; 3]; 2]`
 /// 
-/// `!Clone` な要素を入れるときは `void` は出来ない
+/// `nest!(e; 2; 3) = vec[0..2][0..3]: [[e; 3]; 2]`
 #[macro_export]
-macro_rules! nest {
+macro_rules! vec {
     [void; $n:expr] => { std::vec![std::vec![]; $n] };
-    [void; $n:expr $(;$m:expr)+] => { std::vec![nest![void$(;$m)+]; $n] };
+    [void; $n:expr $(;$m:expr)+] => { std::vec![vec![void$(;$m)+]; $n] };
     
     // [] => { std::vec![] };
     [$($v:expr),*] => { std::vec![$($v),*] };
     [$e:expr; $n:expr] => { std::vec![$e; $n] };
-    [$e:expr; $n:expr $(;$m:expr)+] => { std::vec![nest![$e$(;$m)+]; $n] };
+    [$e:expr; $n:expr $(;$m:expr)+] => { std::vec![vec![$e$(;$m)+]; $n] };
 }
-
 
 
 // Float は Ord が使えないので reduce している
@@ -137,8 +135,10 @@ macro_rules! safe_pow {
     } }
 }
 
-
-/* macro_rules! impl_for {
-    ($trait:ty; $($type:ty),+) => { $( impl $trait for $type {} )+ }
+/// `map_get(map, key, def)` -> `map.entry(key).or_insert(def): &mut V`
+#[macro_export]
+macro_rules! map_get {
+    ($map:expr, $key:expr, $def:expr) => {
+        $map.entry($key).or_insert($def)
+    };
 }
-pub(crate) use impl_for; */

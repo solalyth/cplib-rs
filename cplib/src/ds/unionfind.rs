@@ -110,7 +110,7 @@ impl<Op: Abelian> UnionFind<Op> {
     
     /// `res[i] = { j | leader(j) == i }`
     pub fn groups(&mut self) -> Vec<Vec<usize>> {
-        let mut res = crate::nest![void; self.len()];
+        let mut res = crate::vec![void; self.len()];
         for i in 0..self.len() { res[self.leader(i)].push(i); }
         res
     }

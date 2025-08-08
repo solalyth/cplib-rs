@@ -1,3 +1,11 @@
+//! # Implemented trait list
+//! 
+//! + [`Grid`]
+//! + [`CharUtil`]
+//! + [`SaturatingPow`]
+//! + [`GetOrInsert`]
+
+
 /// trait for `[usize; 2]`, `[i64; 2]`
 pub trait Grid: Copy + Default {
     // 順番はもう諦めることにしました
@@ -101,6 +109,60 @@ impl CharUtil for char {
     fn flip(self) -> Self { (self as u8 ^ 32) as char }
     
     fn as_urdl(self) -> usize { [b'U', b'R', b'D', b'L'].iter().position(|&v| v == self as u8).unwrap() }
+}
+
+
+
+pub trait SaturatingPow {
+    /// ただし `0^0 = 1` とする。
+    fn saturating_pow(self, exp: usize) -> Self;
+}
+
+macro_rules! impl_saturating_pow {
+    ($($t:ty),+) => { $(
+        impl SaturatingPow for $t {
+            fn saturating_pow(mut self, mut exp: usize) -> Self {
+                let mut res = 1 as $t;
+                while exp != 0 {
+                    if exp%2 == 1 {
+                        res = res.saturating_mul(self);
+                    }
+                    self = self.saturating_mul(self);
+                    exp /= 2;
+                }
+                res
+            }
+        }
+    )+ };
+}
+
+impl_saturating_pow!(usize, i64);
+
+
+
+use std::collections::{BTreeMap, HashMap};
+use std::hash::Hash;
+
+pub trait GetOrInsert {
+    type K;
+    type V;
+    fn get_or_insert(&mut self, key: Self::K, init: Self::V) -> &mut Self::V;
+}
+
+impl<K: Eq + Hash, V> GetOrInsert for HashMap<K, V> {
+    type K = K;
+    type V = V;
+    fn get_or_insert(&mut self, key: K, init: V) -> &mut V {
+        self.entry(key).or_insert(init)
+    }
+}
+
+impl<K: Ord, V> GetOrInsert for BTreeMap<K, V> {
+    type K = K;
+    type V = V;
+    fn get_or_insert(&mut self, key: K, init: V) -> &mut V {
+        self.entry(key).or_insert(init)
+    }
 }
 
 
