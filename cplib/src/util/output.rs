@@ -128,16 +128,15 @@ trait Primitive {
 }
 
 macro_rules! impl_primitive {
-    ($t:ty) => {
+    ($($t:ty),+) => { $(
         impl Primitive for $t {
             fn fmt(&self, buf: &mut String) {
                 write!(buf, "{self}").ok();
             }
         }
-    };
-    ($($t:ty),+) => { $(impl_primitive!($t);)+ }
+    )+ }
 }
-impl_primitive!(char, u32, u64, u128, usize, i32, i64, i128, f32, f64, &str, &String);
+impl_primitive!(char, u32, u64, u128, usize, i64, i128, f32, f64, &str, &String);
 
 impl Primitive for u8 {
     fn fmt(&self, buf: &mut String) {
