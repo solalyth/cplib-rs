@@ -7,7 +7,7 @@ use crate::cplib::util::func::to_bounds;
 /// 遅延なしセグ木なら `id_value`, `prod_value` のみの実装で動く。
 #[allow(unused_variables)]
 pub trait SegtreeOp: Sized {
-    type Value: Clone + PartialEq + Debug;
+    type Value: Clone + Debug;
     type Lazy: Clone;
     
     /// `Value` の単位元を返す。
@@ -60,14 +60,11 @@ impl<Op: SegtreeOp> Segtree<Op> {
         &self.tree[i]
     }
     
-    pub fn set(&mut self, mut i: usize, f: impl FnOnce(&Op::Value) -> Op::Value) {
+    pub fn set(&mut self, mut i: usize, f: impl FnOnce(&mut Op::Value)) {
         i += self.len();
         for j in (1..self.depth).rev() { self.push(i >> j); }
-        let new = f(&self.tree[i]);
-        if new != self.tree[i] {
-            self.tree[i] = new;
-            for j in 1..self.depth { self.update(i >> j); }
-        }
+        f(&mut self.tree[i]);
+        for j in 1..self.depth { self.update(i >> j); }
     }
     
     pub fn entry(&mut self) -> Entry<'_, Op> {
@@ -99,7 +96,7 @@ impl<Op: SegtreeOp> Segtree<Op> {
     //     (l..r).fold(Op::id_value(), |acc, i| Op::prod_value(&acc, &seg.tree[i]))
     // }
     
-    pub fn apply_lazy(&mut self, range: impl RangeBounds<usize>, lazy: Op::Lazy) {
+    pub fn apply(&mut self, range: impl RangeBounds<usize>, lazy: Op::Lazy) {
         let [l, r] = to_bounds(range, self.len()).map(|v| v + self.len());
         if r == self.len() { return; }
         
@@ -118,15 +115,15 @@ impl<Op: SegtreeOp> Segtree<Op> {
         }
     }
     
-    /// `f(l..r) == true && f(l..r+1) == false` である `r` を一つ返す。  
+    /// `f(l..r) == true && f(l..r+1) == false` である `r` を一つ返す。
     /// ただし `f(l..l) == true`, `f(l..len+1) == false` であるとする。
     /// 
     /// # Panics
     /// 
     /// if not `l <= self.len`
-    pub fn max_right(&mut self, l: usize, f: impl Fn(&Op::Value) -> bool) -> usize {
+    pub fn max_right(&mut self, l: usize, r_max: usize, f: impl Fn(&Op::Value) -> bool) -> usize {
         assert!(l <= self.len());
-        if l == self.len() { return self.len(); }
+        if l == self.len() { return self.len().min(r_max); }
         let (mut r, mut val) = (l + self.len(), Op::id_value());
         
         for i in (1..self.depth).rev() { self.push(r >> i); }
@@ -137,7 +134,7 @@ impl<Op: SegtreeOp> Segtree<Op> {
             if !f(&tmp) { break; }
             val = tmp;
             r += 1;
-            if r & r-1 == 0 { return self.len(); }
+            if r & r-1 == 0 { return self.len().min(r_max); }
         }
         
         while r < self.len() {
@@ -147,7 +144,7 @@ impl<Op: SegtreeOp> Segtree<Op> {
             if f(&tmp) { val = tmp; r += 1; }
         }
         
-        r - self.len()
+        (r - self.len()).min(r_max)
     }
     
     /// `f(l-1..r) == false && f(l..r) == true` である `l` を 1 つ返す。
@@ -167,7 +164,6 @@ impl<Op: SegtreeOp> Segtree<Op> {
             l -= 1;
             while l != 1 && l&1 == 1 { l >>= 1; }
             let tmp = Op::prod_value(&self.tree[l], &val);
-            crate::epr!("{tmp:?}");
             if !f(&tmp) { break; }
             val = tmp;
             if l & l-1 == 0 { return 0; }

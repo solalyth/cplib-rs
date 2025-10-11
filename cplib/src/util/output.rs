@@ -1,13 +1,12 @@
-//! 高速出力
+//! 出力用
 
-#![allow(static_mut_refs)]
+#![allow(static_mut_refs, non_camel_case_types)]
 
 use std::{mem::replace, ops::{Not, Shl}, fmt::Write};
 
-static mut BUFFER: Buffer = Buffer { buf: String::new(), endp: false, prev: Previous::LineHead };
-#[allow(non_upper_case_globals)]
-pub static out: Output = Output;
 
+
+static mut BUFFER: Buffer = Buffer { buf: String::new(), endp: false, prev: Previous::LineHead };
 
 /// # Fields
 /// 
@@ -23,23 +22,24 @@ impl Buffer {
     
     fn print(&mut self) {
         if replace(&mut self.prev, Previous::LineHead) == Previous::LineHead { self.buf.pop(); }
-        if self.buf.is_empty() {
-            if !crate::cplib::SUBMISSION { println!("\x1b[32m>> (empty)\x1b[0m"); }
-            return;
-        }
         if crate::cplib::SUBMISSION {
             println!("{}", self.buf);
         } else {
             eprint!("\x1b[32m");
-            for s in self.buf.split('\n') {
-                eprint!(">> ");
-                println!("{s}");
+            if self.buf.is_empty() {
+                println!(">> (empty)");
+            } else {
+                for s in self.buf.split('\n') {
+                    eprint!(">> ");
+                    println!("{s}");
+                }
             }
             eprint!("\x1b[0m");
         }
         self.buf.clear();
     }
     
+    /// フラグと `sp`
     fn space(&mut self, sp: bool) {
         let prev = replace(&mut self.prev, if sp {Previous::Space} else {Previous::NoSpace});
         if (sp || prev == Previous::Space) && prev != Previous::LineHead { self.buf.push(' '); }
@@ -48,69 +48,8 @@ impl Buffer {
 
 
 #[derive(Clone, Copy)]
-pub struct Output<const SP: bool = true>;
-
-impl Output {
-    pub fn init(endp: bool) {
-        unsafe {
-            BUFFER.buf.reserve(Buffer::LEN);
-            BUFFER.endp = endp;
-        }
-    }
-    pub fn print() { unsafe { BUFFER.print(); } }
-}
-
-impl<const SP: bool> Output<SP> {
-    pub fn space() { unsafe { if BUFFER.prev == Previous::NoSpace { BUFFER.prev = Previous::Space; } } }
-    fn push<T: Primitive>(v: &T) {
-        unsafe {
-            BUFFER.space(SP);
-            v.fmt(&mut BUFFER.buf);
-        }
-    }
-}
-
-impl Not for Output {
-    type Output = Output<false>;
-    fn not(self) -> Self::Output { Output }
-}
-
-impl<const SP: bool, T: Primitive> Shl<T> for Output<SP> {
-    type Output = Self;
-    fn shl(self, rhs: T) -> Self::Output { Self::push(&rhs); self }
-}
-
-macro_rules! impl_for_slices {
-    ($t:ty) => {
-        impl<const SP: bool, T: Primitive> Shl<$t> for Output<SP> {
-            type Output = Self;
-            fn shl(self, rhs: $t) -> Self::Output { for v in rhs { Self::push(v); } self }
-        }
-    };
-    ($($t:ty),+) => { $(impl_for_slices!($t);)+ }
-}
-impl_for_slices!(&[T], &Vec<T>);
-
-
-impl<const SP: bool> Shl<end> for Output<SP> {
-    type Output = Self;
-    fn shl(self, _: end) -> Self::Output {
-        unsafe {
-            if BUFFER.endp {
-                BUFFER.print();
-            } else {
-                BUFFER.buf += "\n";
-                BUFFER.prev = Previous::LineHead;
-            }
-        }
-        self
-    }
-}
-
-
-
-
-#[allow(non_camel_case_types)]
+pub struct out;
+pub struct out_usp;
 pub struct end;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -119,6 +58,90 @@ enum Previous {
     NoSpace,
     LineHead,
 }
+
+
+
+impl out {
+    pub fn init(endp: bool) {
+        unsafe {
+            BUFFER.buf.reserve(Buffer::LEN);
+            BUFFER.endp = endp;
+        }
+    }
+    pub fn print() { unsafe { BUFFER.print(); } }
+    
+    pub fn space() { unsafe { if BUFFER.prev == Previous::NoSpace { BUFFER.prev = Previous::Space; } } }
+    fn push<T: Primitive>(v: &T) {
+        unsafe {
+            BUFFER.space(true);
+            v.fmt(&mut BUFFER.buf);
+        }
+    }
+}
+
+impl out_usp {
+    fn push<T: Primitive>(v: &T) {
+        unsafe {
+            BUFFER.space(false);
+            v.fmt(&mut BUFFER.buf);
+        }
+    }
+}
+
+impl Not for out {
+    type Output = out_usp;
+    fn not(self) -> Self::Output { out_usp }
+}
+
+
+
+/// implement `Shl<Primitive>, Shl<end>` for `end, end_usp`
+macro_rules! impl_outs {
+    ($($t:ty),+) => { $(
+        impl<T: Primitive> Shl<T> for $t {
+            type Output = Self;
+            fn shl(self, rhs: T) -> Self::Output {
+                Self::push(&rhs); self
+            }
+        }
+        impl Shl<end> for $t {
+            type Output = Self;
+            fn shl(self, _: end) -> Self::Output {
+                unsafe {
+                    if BUFFER.endp {
+                        BUFFER.print();
+                    } else {
+                        BUFFER.buf += "\n";
+                        BUFFER.prev = Previous::LineHead;
+                    }
+                }
+                self
+            }
+        }
+    )+ };
+}
+impl_outs!(out, out_usp);
+
+
+
+
+
+
+macro_rules! impl_for_slices {
+    ($($t:ty),+) => { $(impl_for_slices!($t; out, out_usp);)+ };
+    ($t:ty; $($u:ty),+) => { $(
+        impl<T: Primitive> Shl<$t> for $u {
+            type Output = Self;
+            fn shl(self, rhs: $t) -> Self::Output { for v in rhs { Self::push(v); } self }
+        }
+    )+}
+}
+impl_for_slices!(&[T], &Vec<T>);
+
+
+
+
+
 
 
 
@@ -136,7 +159,7 @@ macro_rules! impl_primitive {
         }
     )+ }
 }
-impl_primitive!(char, u32, u64, u128, usize, i64, i128, f32, f64, &str, &String);
+impl_primitive!(char, u32, u64, u128, usize, i32, i64, i128, f32, f64, &str, &String);
 
 impl Primitive for u8 {
     fn fmt(&self, buf: &mut String) {

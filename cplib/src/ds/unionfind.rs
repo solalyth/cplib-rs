@@ -84,7 +84,7 @@ impl<Op: Abelian> UnionFind<Op> {
     pub fn size(&mut self, mut i: usize) -> usize { i = self.leader(i); self.size[i] }
     pub fn is_same(&mut self, i: usize, j: usize) -> bool { self.leader(i) == self.leader(j) }
     
-    /// `potential[i] - potential[j]` を返す。
+    /// `P[i] - P[j]` を返す。
     /// 
     /// # Panics
     /// 
@@ -94,23 +94,29 @@ impl<Op: Abelian> UnionFind<Op> {
         Op::sub(&self.diff[i], &self.diff[j])
     }
     
-    /// `potential[i] - potential[j] = w` となるよう情報を追加する。
-    /// 整合性を保てないとき `None` を返す。そうでないとき `Some((new_leader, old_leader))` を返す。ただし、同じ親であるとき `new_leader == old_leader` である。
+    /// `P[i] - P[j] = w` となるよう辺を追加する。
+    /// 整合性を保てないとき `None` を返す。元々連結であったとき `Some((common_leader, !0))` を返し、非連結であったとき `Some((new_leader, old_leader))` を返す。
+    /// 
+    /// 操作前について `size[old] <= size[new]` が保証される。
     pub fn merge(&mut self, i: usize, j: usize, mut w: Op::T) -> Option<(usize, usize)> {
-        let (mut u, mut v) = (self.leader(i), self.leader(j));
+        let (mut old, mut new) = (self.leader(i), self.leader(j));
         w = Op::sub(&Op::add(&w, &self.diff[j]), &self.diff[i]);
-        if u == v { return if w == Op::e() { Some((u, u)) } else { None } }
-        if !(self.size[u] < self.size[v]) { (u, v) = (v, u); w = Op::inv(&w); }
-        self.par[u] = v;
-        self.diff[u] = w;
-        self.size[v] += self.size[u];
+        if old == new { return if w == Op::e() { Some((old, !0)) } else { None } }
+        if !(self.size[old] <= self.size[new]) { (old, new) = (new, old); w = Op::inv(&w); }
+        self.par[old] = new;
+        self.diff[old] = w;
+        self.size[new] += self.size[old];
         self.next.swap(i, j);
-        Some((v, u))
+        Some((new, old))
+    }
+    
+    pub fn size_undo(&self, new: usize, old: usize) -> (usize, usize) {
+        (self.size[new] - self.size[old], self.size[old])
     }
     
     /// `res[i] = { j | leader(j) == i }`
     pub fn groups(&mut self) -> Vec<Vec<usize>> {
-        let mut res = crate::vec![void; self.len()];
+        let mut res = crate::nest![void; self.len()];
         for i in 0..self.len() { res[self.leader(i)].push(i); }
         res
     }

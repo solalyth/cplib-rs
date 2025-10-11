@@ -1,11 +1,15 @@
-/// abs of `gcd(a, b)`
-pub fn gcd(mut a: i64, mut b: i64) -> i64 {
+pub fn gcd(mut a: usize, mut b: usize) -> usize {
     while b != 0 { (a, b) = (b, a%b); }
-    a.abs()
+    a
 }
 
-/// `ax + by = gcd(a,b)` なる `(x, y, gcd(a, b))` を返す。ただし `|x| <= b, |y| <= a` を満たす。
+pub fn lcm(a: usize, b: usize) -> Option<usize> {
+    (a/gcd(a, b)).checked_mul(b)
+}
+
+/// `ax + by = gcd(a,b)` を満たす `(x, y, gcd(a, b))` を返す。ただし `0 <= gcd(a,b)`, `max(|x|, |y|) <= max(|a|, |b|)` を満たす。
 pub fn extended_gcd(mut a: i64, mut b: i64) -> (i64, i64, i64) {
+    if (a, b) == (0, 0) { return (0, 0, 0); }
     let mut st = vec![];
     while b != 0 { st.push(a/b); (a, b) = (b, a%b); }
     let (mut x, mut y) = (a.signum(), 0);
@@ -13,10 +17,26 @@ pub fn extended_gcd(mut a: i64, mut b: i64) -> (i64, i64, i64) {
     (x, y, a.abs())
 }
 
-/// `x^n mod m` を計算する。
+pub fn modinv(x: usize, m: usize) -> Option<usize> {
+    let (x, _, g) = extended_gcd(x as i64, m as i64);
+    if g == 1 { Some(x.rem_euclid(m as i64) as usize) } else { None }
+}
+
+// pub fn crt((a1, m1): (usize, usize), (a2, m2): (usize, usize)) -> Option<(usize, usize)> {
+//     let g = gcd(m1, m2);
+//     let (a1, a2) = ((a1%g) as i64, (a2%g) as i64);
+//     if (a2-a1)%g as i64 != 0 { return None; }
+//     let a1inv = modinv(m1/g, m2/g)?;
+    
+//     todo!()
+// }
+
+
+
+/// `x^n mod m` を計算する。`0^0 == 1` とする。
 pub fn mpow(mut x: usize, mut n: usize, m: usize) -> usize {
     x %= m;
-    if x == 0 { return 0; }
+    if n == 0 { return if x == 0 {0} else {1}; }
     let mut res = 1;
     while n != 0 {
         if n&1 == 1 { res = res*x % m; }
@@ -28,54 +48,111 @@ pub fn mpow(mut x: usize, mut n: usize, m: usize) -> usize {
 
 
 
-/// `ax^2 + bx + c = 0` の解を返す。
-pub fn solve_quad(mut a: i128, mut b: i128, mut c: i128) -> Option<Vec<i128>> {
-    fn isqrt(n: i128) -> i128 { (n as f64).sqrt() as i128 }
-    let mut res = vec![];
-    if a == 0 {
-        if b == 0 && c == 0 { return None; }
-        if b != 0 && c%b == 0 { res.push(-c/b); }
-        return Some(res);
-    }
-    if a < 0 { (a, b, c) = (-a, -b, -c); }
-    let d2 = b*b - 4*a*c;
-    if d2 < 0 || isqrt(d2).pow(2) != d2 { return Some(res); }
-    let d = isqrt(d2);
-    if (-b-d) % (2*a) == 0 { res.push((-b-d)/(2*a)); }
-    if (-b+d) % (2*a) == 0 { res.push((-b+d)/(2*a)); }
-    Some(res)
-}
 
 
-/// `(a, b, c)`: `for i in a..=b, n/i == c`
+
+
+
+/// floor 商列挙 `(l, r, x)`: `for i in l..r, floor(n/i) == x`
 /// 
 /// # Memo
 /// 
-/// `n/i == j` iff `i in n/(j+1)+1..n/j+1` なので `n/j+1` を入れていけばよい。
-/// `j = 1..=sqrt(n)` となる `i` はちょうど 1 つなので高速化させる。
+/// `floor(n/i) == x` <==> `floor(n/(x+1)) < i <= floor(n/x)`
+/// 
+/// 区間の形に気をつけると、
+/// 
+/// ```no_run
+/// let b = N.isqrt();
+/// for i in 1..=N/b {
+///     // x = N/i
+/// }
+/// for x in (1..b).rev() {
+///     let xl = N/(x+1);
+///     let xr = N/x;
+///     // for i in (xl, xr], N/i == x
+/// }
+/// ```
+/// 
+/// のようにシンプルに書ける。
+/// 
+/// `N <= x(x+1)` ならば `floor(N/i) = x` となる `i` が高々 1 つであることが示せる。上の実装だと `B = sqrt(N)+1` とすればよい。
 pub fn quotient_floor(n: usize) -> Vec<(usize, usize, usize)> {
     let mut res = vec![];
-    let mut i = 1;
-    while i*i <= n { res.push((i, i, n/i)); i += 1; }
-    // i = sqrt(n)+1
-    for j in (1..=n/i).rev() {
-        if n/j - n/(j+1) != 0 { res.push((n/(j+1)+1, n/j, j)); }
+    let b = (n as f64).sqrt() as usize + 1;
+    for i in 1..=n/b {
+        res.push((i, i+1, n/i));
+    }
+    for x in (1..b).rev() {
+        let l = n/(x+1);
+        let r = n/x;
+        if l != r {
+            res.push((l+1, r+1, x));
+        }
+    }
+    // debug_assert!(res.windows(2).all(|w| w[0].1 == w[1].0 && w[0].2 > w[1].2));
+    res
+}
+
+/// ceil 商列挙 `(l, r, x)`: `for i in l..r, ceil(n/i) == x`
+/// 
+/// # Memo
+/// 
+/// `ceil(n/i) == x` <==> `ceil(n/x) <= i < ceil(n/(x-1))`
+/// 
+/// `N <= (x-1)x` ならば `ceil(N/i) = x` となる `i` が高々 1 つであることが示せる。
+pub fn quotient_ceil(n: usize) -> Vec<(usize, usize, usize)> {
+    let mut res = vec![];
+    let b = (n as f64).sqrt() as usize+2;
+    for i in 1..(n+b-1)/b {
+        res.push((i, i+1, (n+i-1)/i));
+    }
+    for x in (2..b).rev() {
+        let l = (n+x-1)/x;
+        let r = (n+x-2)/(x-1);
+        if l != r { res.push((l, r, x)); }
+    }
+    res.push((n, n+1, 1));
+    // debug_assert!(res.windows(2).all(|w| w[0].1 == w[1].0 && w[0].2 > w[1].2));
+    res
+}
+
+
+
+/// 和が `n` である、長さ `k` の非負整数列を辞書順に返す。`res.len() == (n+k-1)! / (n! * (k-1)!)`
+pub fn partitions(n: usize, k: usize) -> Vec<Vec<usize>> {
+    let mut cur = vec![0; k];
+    cur[k-1] = n;
+    let mut res = vec![cur.clone()];
+    
+    while cur[0] != n {
+        for i in (1..k).rev() {
+            if cur[i] != 0 {
+                cur[k-1] = std::mem::replace(&mut cur[i], 0)-1;
+                cur[i-1] += 1;
+                break;
+            }
+        }
+        debug_assert!(cur.iter().sum::<usize>() == n);
+        res.push(cur.clone());
+    }
+    
+    res
+}
+
+
+
+
+pub fn into_ary(mut n: usize, base: usize) -> Vec<usize> {
+    if n == 0 { return vec![]; }
+    let mut res = vec![];
+    while n != 0 {
+        res.push(n%base); n /= base;
     }
     res
 }
 
-/// `(a, b, c)`: `for i in a..=b, ceil(n/i) == c`
-pub fn quotient_ceil(n: usize) -> Vec<(usize, usize, usize)> {
-    let mut res = vec![];
-    let mut i = 1;
-    while (i+1)*(i+1) <= n { res.push((i, i, (n+i-1)/i)); i += 1; }
-    // i = sqrt(n)
-    for j in (2..=(n+i-1)/i).rev() {
-        let l = (n+j-1)/j;
-        let r = (n-1)/(j-1);
-        assert!((n+l-1)/l == j && (n+r-1)/r == j);
-        res.push(((n+j-1)/j, (n-1)/(j-1), j));
-    }
-    res.push((n, n, 1));
+pub fn from_ary(d: &[usize], base: usize) -> usize {
+    let mut res = 0;
+    for &d in d { res = res*base + d; }
     res
 }

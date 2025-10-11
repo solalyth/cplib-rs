@@ -8,6 +8,7 @@ proconio = "0.4.5"
 itertools = "0.10"
 # num = "0.4"
 num-integer = "0.1"
+num-bigint = "0.4"
 superslice = "1.0"
 
 ac-library-rs = "0.1.1"

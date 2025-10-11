@@ -216,7 +216,7 @@ impl<Op: OrderedOp> Debug for Ordered<Op> {
 
 
 
-pub struct Node<Op: OrderedOp> {
+struct Node<Op: OrderedOp> {
     parent: Option<NodeRef<Op>>,
     child: [Option<NodeRef<Op>>; 2],
     pub key: Op::Key,
@@ -226,7 +226,7 @@ pub struct Node<Op: OrderedOp> {
     pub cnt: (usize, usize)
 }
 
-pub struct NodeRef<Op: OrderedOp>(NonNull<Node<Op>>);
+struct NodeRef<Op: OrderedOp>(NonNull<Node<Op>>);
 
 impl<Op: OrderedOp> NodeRef<Op> {
     fn new(key: Op::Key, value: Op::Value) -> Self {
@@ -248,7 +248,6 @@ impl<Op: OrderedOp> NodeRef<Op> {
     /// 
     /// if `self.parent == None`
     fn rotate(mut self, p: Self, pos: bool) {
-        // todo
         self.parent = p.parent;
         if let Some(pp) = p.parent { pp.set_child(Some(self), pp.child[1] == Some(p)); }
         p.set_child(self.child[!pos as usize], pos);
@@ -306,7 +305,7 @@ impl<Op: OrderedOp> DerefMut for NodeRef<Op> {
     fn deref_mut(&mut self) -> &mut Self::Target { unsafe { self.0.as_mut() } }
 }
 
-impl<Op: OrderedOp> Clone for NodeRef<Op> { fn clone(&self) -> Self { Self(self.0.clone()) } }
+impl<Op: OrderedOp> Clone for NodeRef<Op> { fn clone(&self) -> Self { Self(self.0) } }
 
 impl<Op: OrderedOp> Copy for NodeRef<Op> {}
 

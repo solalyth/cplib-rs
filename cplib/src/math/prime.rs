@@ -73,6 +73,7 @@ impl LpfSieve {
         self.fold(n, vec![], |v, p, e| { v.push((p, e)); } )
     }
     
+    /// `p <= max` なる素数について試し割りを行う。
     pub fn factorize_big(&self, mut n: usize) -> Vec<(usize, usize)> {
         assert_ne!(n, 0);
         let mut res = vec![];
@@ -188,7 +189,7 @@ impl LpfSieve {
         let vl = g.len() - 1;
         for &p in self.primes() {
             if vl < p { break; }
-            for i in 1..=vl/p { g[i*p] = g[i*p] - g[i]; }
+            for i in 1..=vl/p { g[i] = g[i] - g[i*p]; }
         }
         g
     }

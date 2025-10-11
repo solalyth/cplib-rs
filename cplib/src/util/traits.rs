@@ -11,8 +11,10 @@ pub trait Grid: Copy + Default {
     // 順番はもう諦めることにしました
     const AROUND: [[i64; 2]; 8] = [[0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [-1, 1], [1, -1], [1, 1]];
     fn add(self, rhs: [i64; 2]) -> Self;
-    fn apply(self, c: char) -> Self {
-        self.add(Self::AROUND[match c { 'L' => 0, 'R' => 1, 'U' => 2, 'D' => 3, _ => unreachable!() }])
+    fn apply(self, c: char, n: i64) -> Self {
+        let mut d = Self::AROUND[match c { 'L' => 0, 'R' => 1, 'U' => 2, 'D' => 3, _ => unreachable!() }];
+        d[0] *= n; d[1] *= n;
+        self.add(d)
     }
     fn around4(self) -> [Self; 4] {
         let mut res = [Default::default(); 4];
@@ -78,8 +80,6 @@ pub trait CharUtil: Clone {
     fn parse_digit(self) -> usize;
     
     fn flip(self) -> Self;
-    
-    fn as_urdl(self) -> usize;
 }
 
 impl CharUtil for char {
@@ -107,83 +107,31 @@ impl CharUtil for char {
     fn parse_digit(self) -> usize { debug_assert!('0' <= self && self <= '9'); self as usize - 48 }
     
     fn flip(self) -> Self { (self as u8 ^ 32) as char }
-    
-    fn as_urdl(self) -> usize { [b'U', b'R', b'D', b'L'].iter().position(|&v| v == self as u8).unwrap() }
 }
-
-
-
-pub trait SaturatingPow {
-    /// ただし `0^0 = 1` とする。
-    fn saturating_pow(self, exp: usize) -> Self;
-}
-
-macro_rules! impl_saturating_pow {
-    ($($t:ty),+) => { $(
-        impl SaturatingPow for $t {
-            fn saturating_pow(mut self, mut exp: usize) -> Self {
-                let mut res = 1 as $t;
-                while exp != 0 {
-                    if exp%2 == 1 {
-                        res = res.saturating_mul(self);
-                    }
-                    self = self.saturating_mul(self);
-                    exp /= 2;
-                }
-                res
-            }
-        }
-    )+ };
-}
-
-impl_saturating_pow!(usize, i64);
 
 
 
 use std::collections::{BTreeMap, HashMap};
 use std::hash::Hash;
 
-pub trait GetOrInsert {
+pub trait MapInit {
     type K;
     type V;
-    fn get_or_insert(&mut self, key: Self::K, init: Self::V) -> &mut Self::V;
+    fn init(&mut self, key: Self::K, init: Self::V) -> &mut Self::V;
 }
 
-impl<K: Eq + Hash, V> GetOrInsert for HashMap<K, V> {
+impl<K: Eq + Hash, V> MapInit for HashMap<K, V> {
     type K = K;
     type V = V;
-    fn get_or_insert(&mut self, key: K, init: V) -> &mut V {
+    fn init(&mut self, key: K, init: V) -> &mut V {
         self.entry(key).or_insert(init)
     }
 }
 
-impl<K: Ord, V> GetOrInsert for BTreeMap<K, V> {
+impl<K: Ord, V> MapInit for BTreeMap<K, V> {
     type K = K;
     type V = V;
-    fn get_or_insert(&mut self, key: K, init: V) -> &mut V {
+    fn init(&mut self, key: K, init: V) -> &mut V {
         self.entry(key).or_insert(init)
     }
 }
-
-
-
-// pub trait UsizeUtil: Copy {
-//     /// `(0..n).sum() == n*(n-1)/2`
-//     fn linear_sum(self) -> Self;
-//     fn inv_linear_sum(self) -> Self;
-    
-//     fn sqrt(self) -> Self;
-// }
-
-// impl UsizeUtil for usize {
-//     fn linear_sum(self) -> Self {
-//         self*self.wrapping_sub(1)/2
-//     }
-//     fn inv_linear_sum(self) -> Self {
-//         todo!()
-//     }
-    
-//     fn sqrt(self) -> Self {
-        
-//     }
-// }

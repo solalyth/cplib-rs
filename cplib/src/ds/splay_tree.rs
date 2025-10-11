@@ -1,18 +1,12 @@
-use crate::cplib::util::func::to_bounds;
-
-use std::cell::Cell;
-use std::fmt::Debug;
-use std::ops::{Deref, DerefMut, Index, RangeBounds};
-use std::ptr::{eq as ptr_eq, null_mut};
-use std::mem::replace;
-
+use std::{cell::Cell, /* fmt::Debug, */ mem::replace, ops::{Deref, DerefMut}, ptr::NonNull};
+// use crate::cplib::util::func::to_bounds;
 
 
 /// [`SplayTree`] に載せる演算用 trait
-pub trait SplayOps {
-    type Value: Sized + Clone + Debug;
-    type Acc: Sized + Clone;
-    type Lazy: Sized + Clone;
+pub trait SplayOp {
+    type Value: Clone;
+    type Acc: Clone;
+    type Lazy: Clone;
     
     /// `Value` を `Acc` 化する。
     fn to_acc(value: &Self::Value) -> Self::Acc;
@@ -27,6 +21,140 @@ pub trait SplayOps {
 }
 
 
+/// 
+pub struct SplayTree<Op: SplayOp>(Cell<Option<NodeRef<Op>>>);
+
+impl<Op: SplayOp> SplayTree<Op> {
+    pub fn new() -> Self { Self(Cell::new(None)) }
+    pub fn is_empty(&self) -> bool { self.0.get().is_none() }
+    pub fn len(&self) -> usize { self.0.get().map_or(0, |p| p.len()) }
+    
+    fn splay(&self, p: NodeRef<Op>) -> NodeRef<Op> {
+        p.splay();
+        self.0.set(Some(p));
+        p
+    }
+    
+    pub fn get(&self, idx: usize) -> Option<&Op::Value> {
+        self.nth(idx);
+        self.0.get().map(|p| unsafe { &p.0.as_ref().value })
+    }
+    
+    /// `idx` 番目を根にして、`f(&mut root)`
+    pub fn set<T>(&self, idx: usize, f: impl FnOnce(&mut Op::Value) -> T) -> Option<T> {
+        let Some(mut r) = self.nth(idx) else { return None; };
+        let res = f(&mut r.value);
+        r.recalc();
+        Some(res)
+    }
+    
+    /// `idx` 番目のノードを根にして、返す。
+    /// 
+    /// # Panics
+    /// 
+    /// if not `idx < self.len()`. 特に空木について呼ぶことができない。
+    fn nth(&self, mut idx: usize) -> Option<NodeRef<Op>> {
+        if !(idx < self.len()) { return None; }
+        let mut p = self.0.get().unwrap();
+        loop {
+            use std::cmp::Ordering::*;
+            p.push();
+            match idx.cmp(&p.cnt[0]) {
+                Less => { p = p.child[0].unwrap(); }
+                Equal => { self.splay(p); return Some(p); }
+                Greater => { idx -= p.cnt[0]+1; p = p.child[1].unwrap(); }
+            }
+        }
+    }
+    
+    fn first(&self) -> NodeRef<Op> {
+        let mut p = self.0.get().unwrap();
+        while let Some(c) = p.child[0] { p = c; }
+        self.splay(p)
+    }
+    
+    pub fn insert(&mut self, idx: usize, value: Op::Value) {
+        assert!(idx <= self.len());
+        let node = NodeRef::new(value);
+        let Some(mut p) = self.0.get() else { self.0.set(Some(node)); return; };
+        let mut cur = 0;
+        loop {
+            p.push();
+            let pos = cur+p.cnt[0] < idx;
+            if pos { cur += p.cnt[0]+1; }
+            let Some(c) = p.child[pos as usize] else {
+                connect(Some(p), Some(node), pos);
+                self.splay(node);
+                return;
+            };
+            p = c;
+        }
+    }
+    
+    pub fn partition_point(&self, pred: impl Fn(&Op::Value) -> bool) -> usize {
+        let Some(mut p) = self.0.get() else { return 0; };
+        let mut res = 0;
+        loop {
+            p.push();
+            let pos = pred(&p.value);
+            if pos { res += p.cnt[0]+1; }
+            let Some(c) = p.child[pos as usize] else { return res; };
+            p = c;
+        }
+    }
+    
+    
+    
+    pub fn split(&mut self, at: usize) -> SplayTree<Op> {
+        assert!(at <= self.len());
+        if at == self.len() { return SplayTree::new(); }
+        if at == 0 { return replace(self, SplayTree::new()); }
+        self.nth(at);
+        let mut r = self.0.get().unwrap();
+        let mut l = r.child[0].take().unwrap();
+        
+        l.push();
+        l.parent = None;
+        self.0.set(Some(l));
+        
+        r.recalc();
+        SplayTree(Cell::new(Some(r)))
+    }
+    
+    pub fn concat(&mut self, r: Self) {
+        if r.is_empty() { return; }
+        let mut r = r.first();
+        r.child[0] = self.0.get();
+        r.recalc();
+        self.0.set(Some(r));
+    }
+    
+    pub fn remove(&mut self, idx: usize) -> Op::Value {
+        assert!(idx < self.len());
+        let r = self.split(idx);
+        let mp = if let Some(mut r) = r.nth(1) {
+            let m = replace(&mut r.child[0], self.0.get()).unwrap();
+            r.recalc();
+            self.0.set(Some(r));
+            m
+        } else {
+            r.0.get().unwrap()
+        };
+        unsafe { Box::from_raw(mp.0.as_ptr()).value }
+    }
+}
+
+
+
+// impl<Op: SplayOp> Debug for SplayTree<Op> where Op::Value: Debug {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         let Some(r) = self.0.get() else { write!(f, "<empty>") };
+//         let mut stk = vec![];
+        
+//     }
+// }
+
+/*
 
 /// Splay 木
 /// 
@@ -48,9 +176,9 @@ pub trait SplayOps {
 /// # Memo
 /// 
 /// - `splay` しかしないような関数は `&self` で、そうでない破壊的関数は `&mut self` にしてある。
-pub struct SplayTree<Ops: SplayOps> (Cell<*mut Node<Ops>>);
+pub struct SplayTree<Ops: SplayOp> (Cell<*mut Node<Ops>>);
 
-impl<Ops: SplayOps> SplayTree<Ops> {
+impl<Ops: SplayOp> SplayTree<Ops> {
     fn root(&self) -> *mut Node<Ops> { self.0.get() }
     fn set_root(&self, ptr: *mut Node<Ops>) { self.0.set(ptr); }
     
@@ -156,7 +284,7 @@ impl<Ops: SplayOps> SplayTree<Ops> {
     }
 }
 
-impl<Ops: SplayOps> FromIterator<Ops::Value> for SplayTree<Ops> {
+impl<Ops: SplayOp> FromIterator<Ops::Value> for SplayTree<Ops> {
     fn from_iter<T: IntoIterator<Item = Ops::Value>>(iter: T) -> Self {
         let mut iter = iter.into_iter();
         let mut root = if let Some(v) = iter.next() { Node::new(v) } else { return Self::new(); };
@@ -171,28 +299,28 @@ impl<Ops: SplayOps> FromIterator<Ops::Value> for SplayTree<Ops> {
     }
 }
 
-impl<'a, Ops: SplayOps> IntoIterator for &'a SplayTree<Ops> {
+impl<'a, Ops: SplayOp> IntoIterator for &'a SplayTree<Ops> {
     type Item = &'a Ops::Value;
     type IntoIter = Iter<'a, Ops>;
     fn into_iter(self) -> Self::IntoIter { self.iter() }
 }
 
-impl<Ops: SplayOps> Clone for SplayTree<Ops> {
+impl<Ops: SplayOp> Clone for SplayTree<Ops> {
     fn clone(&self) -> Self { self.iter().map(|v| v.clone()).collect() }
 }
 
-impl<Ops: SplayOps> Index<usize> for SplayTree<Ops> {
+impl<Ops: SplayOp> Index<usize> for SplayTree<Ops> {
     type Output = Ops::Value;
     fn index(&self, index: usize) -> &Self::Output { self.get(index).expect("Out of index (@ SplayTree, Index<usize>)") }
 }
 
-impl<Ops: SplayOps> Debug for SplayTree<Ops> where Ops::Value: Debug {
+impl<Ops: SplayOp> Debug for SplayTree<Ops> where Ops::Value: Debug {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_list().entries(self.iter()).finish()
     }
 }
 
-impl<Ops: SplayOps> Drop for SplayTree<Ops> {
+impl<Ops: SplayOp> Drop for SplayTree<Ops> {
     fn drop(&mut self) {}
 }
 
@@ -203,18 +331,18 @@ impl<Ops: SplayOps> Drop for SplayTree<Ops> {
 /// # Constraints
 /// 
 /// `self.0` が `entry` 対象で、かつ根であること。
-pub struct RefMut<'a, Ops: SplayOps>(&'a mut Node<Ops>);
+pub struct RefMut<'a, Ops: SplayOp>(&'a mut Node<Ops>);
 
-impl<Ops: SplayOps> Deref for RefMut<'_, Ops> {
+impl<Ops: SplayOp> Deref for RefMut<'_, Ops> {
     type Target = Ops::Value;
     fn deref(&self) -> &Self::Target { &self.0.value }
 }
 
-impl<Ops: SplayOps> DerefMut for RefMut<'_, Ops> {
+impl<Ops: SplayOp> DerefMut for RefMut<'_, Ops> {
     fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0.value }
 }
 
-impl<Ops: SplayOps> Drop for RefMut<'_, Ops> {
+impl<Ops: SplayOp> Drop for RefMut<'_, Ops> {
     fn drop(&mut self) { self.0.update(); }
 }
 
@@ -225,13 +353,13 @@ impl<Ops: SplayOps> Drop for RefMut<'_, Ops> {
 /// # Constraints
 /// 
 /// [`Iter`] 存在中に破壊的変更をしない。
-pub struct Iter<'a, Ops: SplayOps> {
+pub struct Iter<'a, Ops: SplayOp> {
     splay: &'a SplayTree<Ops>,
     st: usize,
     ed: usize
 }
 
-impl<'a, Ops: SplayOps> Iterator for Iter<'a, Ops> {
+impl<'a, Ops: SplayOp> Iterator for Iter<'a, Ops> {
     type Item = &'a Ops::Value;
     
     fn next(&mut self) -> Option<Self::Item> {
@@ -241,17 +369,148 @@ impl<'a, Ops: SplayOps> Iterator for Iter<'a, Ops> {
     }
 }
 
-impl<'a, Ops: SplayOps> DoubleEndedIterator for Iter<'a, Ops> {
+impl<'a, Ops: SplayOp> DoubleEndedIterator for Iter<'a, Ops> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.st == self.ed { return None; }
         self.ed -= 1;
         Some(&self.splay[self.ed])
     }
 }
+*/
 
 
 
 
+
+/// 遅延 `lazy, rev` の対象は自身を含まない。
+struct Node<Op: SplayOp> {
+    parent: Option<NodeRef<Op>>,
+    child: [Option<NodeRef<Op>>; 2],
+    value: Op::Value,
+    acc: [Op::Acc; 2],
+    lazy: Option<Op::Lazy>,
+    rev: bool,
+    cnt: [usize; 2]
+}
+
+struct NodeRef<Op: SplayOp>(NonNull<Node<Op>>);
+
+fn connect<Op: SplayOp>(p: Option<NodeRef<Op>>, c: Option<NodeRef<Op>>, pos: bool) {
+    if let Some(mut p) = p { p.child[pos as usize] = c; }
+    if let Some(mut c) = c { c.parent = p; }
+}
+
+impl<Op: SplayOp> NodeRef<Op> {
+    fn new(value: Op::Value) -> Self {
+        let node = Node {
+            parent: None,
+            child: [None, None],
+            acc: [Op::to_acc(&value), Op::to_acc(&value)],
+            value,
+            lazy: None,
+            rev: false,
+            cnt: [0, 0]
+        };
+        unsafe {
+            Self(NonNull::new_unchecked(Box::into_raw(Box::new(node))))
+        }
+    }
+    
+    fn len(self) -> usize { 1 + self.cnt[0] + self.cnt[1] }
+    
+    /// parent の位置に self が来るよう回転する。
+    fn rotate(self, p: Self, pos: bool) {
+        connect(p.parent, Some(self), p.parent.map_or(false, |g| g.child[1] == Some(p)));
+        connect(Some(p), self.child[!pos as usize], pos);
+        connect(Some(self), Some(p), !pos);
+        p.recalc();
+        self.recalc();
+    }
+    
+    /// `cnt`, `acc` を再計算する。
+    fn recalc(mut self) {
+        self.cnt = [0; 2];
+        self.acc[0] = Op::to_acc(&self.value);
+        self.acc[1] = self.acc[0].clone();
+        for i in 0..2 {
+            let Some(c) = self.child[i] else { continue; };
+            self.cnt[i] = c.len();
+            self.acc[i] = Op::prod_acc(&c.acc[i], &self.acc[i]);
+            self.acc[i^1] = Op::prod_acc(&self.acc[i^1], &c.acc[i^1]);
+        }
+    }
+    
+    /// `self` を splay する。根から `self` が全て `push` されている必要がある。
+    fn splay(self) {
+        while let Some(p) = self.parent {
+            let pos = p.child[1] == Some(self);
+            let Some(pp) = p.parent else { self.rotate(p, pos); return; };
+            if pos == (pp.child[1] == Some(p)) {
+                // zig-zig
+                p.rotate(pp, pos); self.rotate(p, pos);
+            } else {
+                // zig-zag
+                self.rotate(p, pos); self.rotate(pp, !pos);
+            }
+        }
+    }
+    
+    /// `lazy`, `rev` を解決・伝搬する。特に、子の `value, acc` は遅延が適用された状態になる。
+    fn push(mut self) {
+        if let Some(lazy) = self.lazy.take() {
+            for c in self.child {
+                let Some(mut c) = c else { continue; };
+                Op::act_value(&mut c.value, &lazy);
+                Op::act_acc(&mut c.acc[0], &lazy);
+                Op::act_acc(&mut c.acc[1], &lazy);
+                c.comp_lazy(&lazy);
+            }
+        }
+        
+        if replace(&mut self.rev, false) {
+            for c in self.child {
+                let Some(mut c) = c else { continue; };
+                c.cnt.swap(0, 1);
+                c.child.swap(0, 1);
+                c.acc.swap(0, 1);
+                c.rev ^= true;
+            }
+        }
+    }
+    
+    fn comp_lazy(mut self, lazy: &Op::Lazy) {
+        if let Some(l) = self.lazy.as_mut() {
+            Op::comp_lazy(l, lazy);
+        } else {
+            self.lazy = Some(lazy.clone());
+        }
+    }
+}
+
+
+
+
+
+
+impl<Op: SplayOp> Deref for NodeRef<Op> {
+    type Target = Node<Op>;
+    fn deref(&self) -> &Self::Target { unsafe { self.0.as_ref() } }
+}
+impl<Op: SplayOp> DerefMut for NodeRef<Op> {
+    fn deref_mut(&mut self) -> &mut Self::Target { unsafe { self.0.as_mut() } }
+}
+impl<Op: SplayOp> Clone for NodeRef<Op> {
+    fn clone(&self) -> Self { Self(self.0) }
+}
+impl<Op: SplayOp> Copy for NodeRef<Op> {}
+impl<Op: SplayOp> PartialEq for NodeRef<Op> {
+    fn eq(&self, other: &Self) -> bool { self.0 == other.0 }
+}
+impl<Op: SplayOp> Eq for NodeRef<Op> {}
+
+
+
+/*
 /// Splay 木の `Node`
 struct Node<Ops: SplayOps> {
     pub parent: *mut Self,
@@ -454,3 +713,5 @@ impl<Ops: SplayOps> Node<Ops> {
         (okng[1].0, ptr)
     }
 }
+
+*/

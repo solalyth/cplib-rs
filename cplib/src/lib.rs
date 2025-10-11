@@ -13,8 +13,13 @@ pub mod ds {
     pub mod splay_tree;
     pub mod segtree;
     pub mod sparse_segtree;
+    pub mod convex_hull_trick;
     
     pub mod ordered;
+    pub mod trie;
+    
+    // pub mod light_splay_tree;
+    // pub mod super_splay_tree;
     
     // pub mod rangeset;
     // pub mod multiset;
@@ -27,12 +32,16 @@ pub mod algo {
     pub mod lcs;
     
     pub mod func;
+    pub mod segtree_func;
     
     // pub mod seq;
 }
 
 pub mod graph {
-    pub mod tree;
+    pub mod scc;
+    
+    pub mod functional;
+    // pub mod tree;
 }
 
 pub mod abstracts;
@@ -41,10 +50,12 @@ pub mod math {
     pub mod prime;
     pub mod montgomery;
     // pub mod barrett;
-    // pub mod matrix;
     
     pub mod func;
     pub mod modtable;
+    
+    pub mod mod998;
+    pub mod matrix; // todo
     
     // pub mod vector;
 }
@@ -55,6 +66,6 @@ pub mod util {
     pub mod traits;
     pub mod func;
     
-    pub mod global;
-    // pub mod input;
+    // pub mod global;
+    pub mod time;
 }

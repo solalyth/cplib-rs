@@ -3,12 +3,28 @@ macro_rules! epr {
     ($($args:tt)*) => {
         if !$crate::SUBMISSION {
             #[allow(unused_mut)]
-            let tmp = format!($($args)*);
-            let tmp = tmp.replace("18446744073709551615", "MAX").replace("9223372036854775807", "MAX");
-            // if 500 < tmp.len() {
-            //     tmp.truncate(500); tmp += "...";
-            // }
-            eprintln!("\x1b[31m{tmp}\x1b[0m");
+            let inf = "1152921504606846975"; // i64::MAX/8
+            let mut res = String::new();
+            let mut stk = String::new();
+            for c in format!($($args)*).chars().chain(std::iter::once('*')) {
+                if c.is_numeric() {
+                    stk.push(c);
+                } else {
+                    if (inf.len() == stk.len() && inf <= &stk) || inf.len() < stk.len() {
+                        res += "inf";
+                    } else {
+                        res += &stk;
+                    }
+                    stk.clear();
+                    res.push(c);
+                }
+            }
+            res.pop();
+            
+            // let res = format!($($args)*);
+            
+            eprintln!("\x1b[31m{res}\x1b[0m");
+            
         }
     }
 }
@@ -66,14 +82,14 @@ macro_rules! oj_local {
 /// 
 /// `nest!(e; 2; 3) = vec[0..2][0..3]: [[e; 3]; 2]`
 #[macro_export]
-macro_rules! vec {
+macro_rules! nest {
     [void; $n:expr] => { std::vec![std::vec![]; $n] };
-    [void; $n:expr $(;$m:expr)+] => { std::vec![vec![void$(;$m)+]; $n] };
+    [void; $n:expr $(;$m:expr)+] => { std::vec![crate::nest![void$(;$m)+]; $n] };
     
     // [] => { std::vec![] };
     [$($v:expr),*] => { std::vec![$($v),*] };
     [$e:expr; $n:expr] => { std::vec![$e; $n] };
-    [$e:expr; $n:expr $(;$m:expr)+] => { std::vec![vec![$e$(;$m)+]; $n] };
+    [$e:expr; $n:expr $(;$m:expr)+] => { std::vec![crate::nest![$e$(;$m)+]; $n] };
 }
 
 
@@ -135,10 +151,13 @@ macro_rules! safe_pow {
     } }
 }
 
-/// `map_get(map, key, def)` -> `map.entry(key).or_insert(def): &mut V`
+
+
 #[macro_export]
-macro_rules! map_get {
-    ($map:expr, $key:expr, $def:expr) => {
-        $map.entry($key).or_insert($def)
-    };
+macro_rules! cum {
+    ($iter:expr) => {{
+        let mut cum = vec![0];
+        for (i, v) in $iter.enumerate() { cum.push(cum[i] + v); }
+        cum
+    }};
 }

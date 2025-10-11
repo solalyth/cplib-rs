@@ -6,6 +6,7 @@
 /// 
 /// + https://rsk0315.hatenablog.com/entry/2022/11/27/060616
 ///   - `N -> m, N' -> mont` と読み替えている。
+#[derive(Debug)]
 pub struct Montgomery {
     m: u64,
     /// `r2 = R^2 mod m`

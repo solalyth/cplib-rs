@@ -2,7 +2,8 @@
 //! 
 //! `dp[i][j]` = `lcs(s[..i], t[..j])` と置くと `dp[i][j] -> dp[i+1][j], dp[i][j+1], dp[i+1][j+1]` が計算できる。
 
-/// 
+
+
 pub fn lcs<T: PartialEq + Clone>(s: &[T], t: &[T]) -> Vec<T> {
     let mut dp = vec![vec![0; t.len()+1]; s.len()+1];
     for i in 0..s.len() {

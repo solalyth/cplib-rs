@@ -10,10 +10,13 @@ mod cplib {
         // import!("ds/foldable_deque");
         import!("ds/segtree");
         // import!("ds/splay_tree");
-        import!("ds/sparse_segtree");
+        // import!("ds/sparse_segtree");
+        import!("ds/trie");
+        
         // import!("ds/ordered");
         
         // import!("ds/multiset");
+        // import!("ds/convex_hull_trick");
     }
     
     pub mod algo {
@@ -26,6 +29,8 @@ mod cplib {
     
     pub mod graph {
         // import!("graph/tree");
+        // import!("graph/scc");
+        // import!("graph/functional");
     }
     
     import!("abstracts");
@@ -33,7 +38,7 @@ mod cplib {
     pub mod math {
         import!("math/func");
         import!("math/prime");
-        import!("math/modtable");
+        // import!("math/modtable");
         // import!("math/montgomery");
     }
     
@@ -42,5 +47,6 @@ mod cplib {
         import!("util/traits");
         import!("util/macros");
         import!("util/func");
+        // import!("util/time");
     }
 }
