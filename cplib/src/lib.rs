@@ -44,20 +44,23 @@ pub mod graph {
     // pub mod tree;
 }
 
-pub mod abstracts;
-
 pub mod math {
-    pub mod prime;
+    pub mod sieve;
     pub mod montgomery;
     // pub mod barrett;
     
     pub mod func;
     pub mod modtable;
     
-    pub mod mod998;
-    pub mod matrix; // todo
+    // pub mod mod998;
+    // pub mod matrix; // todo
     
     // pub mod vector;
+}
+
+pub mod mod998 {
+    pub mod fp;
+    pub mod fps;
 }
 
 pub mod util {

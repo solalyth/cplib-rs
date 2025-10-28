@@ -1,3 +1,21 @@
+mod external {
+    pub use {
+        // atcoder, yukicoder
+        proconio::{
+            input, input_interactive,
+            marker::{Bytes as bytes, Chars as chars, Usize1 as usize1}
+        },
+        
+        // atcoder only
+        itertools::{Itertools, iproduct},
+        superslice::Ext,
+        num_integer::{gcd, lcm, Roots},
+        // num_bigint::BigUint,
+        ac_library::{self, ModInt998244353 as Mint},
+        rand
+    };
+}
+
 mod cplib {
     #![allow(unused_macros, dead_code)]
     
@@ -7,11 +25,12 @@ mod cplib {
     
     pub mod ds {
         import!("ds/unionfind");
-        // import!("ds/foldable_deque");
         import!("ds/segtree");
+        
+        // import!("ds/foldable_deque");
         // import!("ds/splay_tree");
         // import!("ds/sparse_segtree");
-        import!("ds/trie");
+        // import!("ds/trie");
         
         // import!("ds/ordered");
         
@@ -33,13 +52,16 @@ mod cplib {
         // import!("graph/functional");
     }
     
-    import!("abstracts");
-    
     pub mod math {
         import!("math/func");
-        import!("math/prime");
+        import!("math/sieve");
         // import!("math/modtable");
         // import!("math/montgomery");
+    }
+    
+    pub mod mod998 {
+        // import!("mod998/fp");
+        // import!("mod998/fps");
     }
     
     pub mod util {

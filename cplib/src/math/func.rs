@@ -118,25 +118,23 @@ pub fn quotient_ceil(n: usize) -> Vec<(usize, usize, usize)> {
 
 
 
-/// 和が `n` である、長さ `k` の非負整数列を辞書順に返す。`res.len() == (n+k-1)! / (n! * (k-1)!)`
-pub fn partitions(n: usize, k: usize) -> Vec<Vec<usize>> {
-    let mut cur = vec![0; k];
-    cur[k-1] = n;
-    let mut res = vec![cur.clone()];
+/// 和が `s` である、長さ `n` の非負整数列を辞書順に返す。`res.len() == (s+n-1)! / (s! * (n-1)!)`
+pub fn partitions(n: usize, s: usize) -> Option<Vec<Vec<usize>>> {
+    if n == 0 && s != 0 { return None; }
+    if s == 0 { return Some(vec![vec![0; n]]); }
     
-    while cur[0] != n {
-        for i in (1..k).rev() {
-            if cur[i] != 0 {
-                cur[k-1] = std::mem::replace(&mut cur[i], 0)-1;
-                cur[i-1] += 1;
-                break;
-            }
-        }
-        debug_assert!(cur.iter().sum::<usize>() == n);
+    let mut cur = vec![0; n];
+    cur[n-1] = s;
+    let (mut res, mut t) = (vec![cur.clone()], n-1);
+    
+    while t != 0 {
+        cur[t-1] += 1;
+        cur[n-1] = std::mem::take(&mut cur[t])-1;
+        if cur[n-1] == 0 { t -= 1; } else { t = n-1; }
         res.push(cur.clone());
     }
     
-    res
+    Some(res)
 }
 
 

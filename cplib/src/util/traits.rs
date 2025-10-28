@@ -11,7 +11,7 @@ pub trait Grid: Copy + Default {
     // 順番はもう諦めることにしました
     const AROUND: [[i64; 2]; 8] = [[0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [-1, 1], [1, -1], [1, 1]];
     fn add(self, rhs: [i64; 2]) -> Self;
-    fn apply(self, c: char, n: i64) -> Self {
+    fn add_char(self, c: char, n: i64) -> Self {
         let mut d = Self::AROUND[match c { 'L' => 0, 'R' => 1, 'U' => 2, 'D' => 3, _ => unreachable!() }];
         d[0] *= n; d[1] *= n;
         self.add(d)
@@ -118,6 +118,7 @@ pub trait MapInit {
     type K;
     type V;
     fn init(&mut self, key: Self::K, init: Self::V) -> &mut Self::V;
+    fn init_with(&mut self, key: Self::K, init: impl FnOnce() -> Self::V) -> &mut Self::V;
 }
 
 impl<K: Eq + Hash, V> MapInit for HashMap<K, V> {
@@ -126,6 +127,9 @@ impl<K: Eq + Hash, V> MapInit for HashMap<K, V> {
     fn init(&mut self, key: K, init: V) -> &mut V {
         self.entry(key).or_insert(init)
     }
+    fn init_with(&mut self, key: K, init: impl FnOnce() -> Self::V) -> &mut V {
+        self.entry(key).or_insert_with(init)
+    }
 }
 
 impl<K: Ord, V> MapInit for BTreeMap<K, V> {
@@ -133,5 +137,8 @@ impl<K: Ord, V> MapInit for BTreeMap<K, V> {
     type V = V;
     fn init(&mut self, key: K, init: V) -> &mut V {
         self.entry(key).or_insert(init)
+    }
+    fn init_with(&mut self, key: Self::K, init: impl FnOnce() -> Self::V) -> &mut Self::V {
+        self.entry(key).or_insert_with(init)
     }
 }

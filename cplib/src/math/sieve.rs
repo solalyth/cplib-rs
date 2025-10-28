@@ -1,9 +1,16 @@
 use std::ops::{Add, Sub};
 
-// use super::montgomery::Montgomery;
-
 const MASK_29BIT: usize = (1<<29)-1;
 
+/// Least Prime Factor (lpf) を線形オーダーで計算する。
+/// 
+/// # Memo
+/// 
+/// 素因数分解における素数の種類数は `max < 9.7e6` くらいの範囲で高々 7 種である。
+/// 
+/// # References
+/// 
+/// - [線形篩で遊ぼう - rsk0315](https://rsk0315.hatenablog.com/entry/2024/08/25/194341)
 pub struct LpfSieve {
     primes: Vec<usize>,
     /// `table[i]` = (`exp` as 6bit, `lpf` as 29bit, `i/(lpf^exp)` as 29bit)
@@ -13,7 +20,6 @@ pub struct LpfSieve {
 impl LpfSieve {
     /// 初期化する。`max = 2^23, 10^7` くらいまで可能。
     pub fn new(mut max: usize) -> Self {
-        assert!(usize::BITS == 64);
         // assert!(max <= 10_000_000);
         
         max = max.max(10);
@@ -54,28 +60,37 @@ impl LpfSieve {
     /// # Panics
     /// 
     /// - if not `n in [1, max]`
-    pub fn fold<T>(&self, mut n: usize, mut init: T, mut f_vpe: impl FnMut(&mut T, usize, usize)) -> T {
+    pub fn fold<T>(&self, mut n: usize, mut init: T, mut f: impl FnMut(&mut T, usize, usize)) -> T {
         assert!(n != 0);
         while n != 1 {
             let (lpf, exp, nx) = self.data(n);
-            f_vpe(&mut init, lpf, exp);
+            f(&mut init, lpf, exp);
             n = nx;
         }
         init
     }
     
-    /// `n` による `(p, exp)` の列を返す。`n = 1` のとき `res == vec![]` である。
+    /// 正整数 `n` を素因数分解した結果 `(p, exp)` の列を返す。`factorize_big(1) == vec![]` である。
+    /// 
+    /// 前計算した lpf テーブルで計算する。
     /// 
     /// # Panics
     /// 
     /// - if not `n in [1, max]`
     pub fn factorize(&self, n: usize) -> Vec<(usize, usize)> {
-        self.fold(n, vec![], |v, p, e| { v.push((p, e)); } )
+        self.fold(n, vec![], |v, p, e| { v.push((p, e)); })
     }
     
-    /// `p <= max` なる素数について試し割りを行う。
+    /// 正整数 `n` を素因数分解した結果 `(p, exp)` の列を返す。`factorize_big(1) == vec![]` である。
+    /// 
+    /// 前計算した素数について試し割りを行う。
+    /// 
+    /// # Panics
+    /// 
+    /// - if not `n in [1, max^2]`
     pub fn factorize_big(&self, mut n: usize) -> Vec<(usize, usize)> {
         assert_ne!(n, 0);
+        assert!(n <= self.max().pow(2));
         let mut res = vec![];
         for &p in &self.primes {
             let mut cnt = 0;
@@ -88,6 +103,8 @@ impl LpfSieve {
     }
     
     /// 約数を返す。昇順かは保証されていない。
+    /// 
+    /// 個数は実用範囲内で `N^(1/3)` 個程度である。(ref. [競プロにおける約数の個数の見積もり - noshi91](https://noshi91.hatenablog.com/entry/2022/07/05/021040))
     pub fn divisors(&self, n: usize) -> Vec<usize> {
         assert!(n != 0);
         self.fold(n, vec![1], |v, p, e| {

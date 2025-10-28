@@ -1,8 +1,7 @@
-/.vscode/
-!/.vscode/templates.code-snippets
+.vscode/
+!.vscode/templates.code-snippets
 
 /src/
 /target/
 
-/in.txt
-/out.txt
+cp.code-workspace

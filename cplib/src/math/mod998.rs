@@ -1,12 +1,13 @@
 pub const M: u64 = 998244353;
 pub const R: u64 = (1<<32) % M;
 pub const R2: u64 = (R*R) % M;
-const P: u32 = 998244351;
+const P: u64 = 998244351;
+const MASK: u64 = (1<<32)-1;
 
-/// `x in [0, MR)` について `x * inv(R) mod M` を返す。
+/// `x < MR` について `x*inv(R) mod M` を返す。
 pub fn prod_rinv(x: u64) -> u64 {
     debug_assert!(x < (M << 32));
-    let a = P.wrapping_mul(x as u32) as u64;
+    let a = P*x & MASK;
     let b = (x + a*M) >> 32;
     if M <= b { b-M } else { b }
 }

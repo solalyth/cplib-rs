@@ -1,11 +1,11 @@
 [package]
 name = "cp"
-version = "0.1.0"
-edition = "2021"
+version = "0.2.0"
+edition = "2024"
 default-run = "main"
 
-[profile.release]
-debug = true
+# [profile.release]
+# debug = true
 
 [workspace]
 members = [
@@ -14,5 +14,5 @@ members = [
 ]
 
 [dependencies]
-external = { version = "0.1.0", path = "external" }
+external = { version = "0.2.0", path = "external" }
 cplib = { version = "0.1.0", path = "cplib" }

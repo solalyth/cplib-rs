@@ -1,15 +1,18 @@
 [package]
 name = "external"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
-[dependencies]
-proconio = "0.4.5"
-itertools = "0.10"
-# num = "0.4"
-num-integer = "0.1"
-num-bigint = "0.4"
-superslice = "1.0"
+[features]
+un_contest = []
 
-ac-library-rs = "0.1.1"
-rand = "0.8"
+[dependencies]
+proconio = "0.5.0"
+itertools = "0.14.0"
+# num = "0.4"
+num-integer = "0.1.46"
+# num-bigint = "0.4"
+superslice = "1.0.0"
+
+ac-library-rs = "0.2.0"
+rand = "0.9.2"
