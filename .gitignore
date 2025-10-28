@@ -1,7 +1,8 @@
-.vscode/
-!.vscode/templates.code-snippets
+/.vscode/*
+!/.vscode/templates.code-snippets
 
 /src/
 /target/
 
+Cargo.lock
 cp.code-workspace

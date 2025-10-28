@@ -1,0 +1,89 @@
+{
+	"Initialize for AtCoder": {
+		"scope": "rust",
+		"prefix": "init",
+		"body": "#![allow(unused_must_use, non_snake_case, unused_labels, unused_imports, non_upper_case_globals)]\nuse external::*;\nuse cplib::prelude::*;\nuse nest as vec;\nconst INTERACTIVE: bool = false;\n// const INTERACTIVE: bool = true; use input_interactive as input;\n\nfn solve() {\n\tinput! {\n\t\t$1\n\t}\n\t\n\t$0\n}\n\n\n\nfn main() { out::init(INTERACTIVE || !SUBMISSION); solve(); out::print() }\n"
+	},
+	
+	"stderr print": {
+		"scope": "rust",
+		"prefix": "epr",
+		"body": "epr!(\"{$0}\");"
+	},
+	
+	"unreachable match": {
+		"scope": "rust",
+		"prefix": "match_unreachable",
+		"body": [
+			"match $0 {",
+			"\t_ => unreachable!()",
+			"}"
+		]
+	},
+	
+	"LRUD match": {
+		"scope": "rust",
+		"prefix": "snp_match_lrud",
+		"body": [
+			"match $0 {",
+			"\t'L' => {",
+			"\t\t// j--, (0, -1)",
+			"\t}",
+			"\t'R' => {",
+			"\t\t// j++, (0, 1)",
+			"\t}",
+			"\t'U' => {",
+			"\t\t// i--, (-1, 0)",
+			"\t}",
+			"\t'D' => {",
+			"\t\t// i++, (1, 0)",
+			"\t}",
+			"\t_ => { unreachable!() }",
+			"}"
+		]
+	},
+	
+	"尺取り max-right": {
+		"scope": "rust",
+		"prefix": "snp_max_right",
+		"description": "不足が判定できるとき",
+		"body": [
+			"let mut r = 0;",
+			"for l in 0..${1:len} {",
+			"\t// pred(r) = A[r] を追加すべきか",
+			"\twhile r != ${1:len} && ${0:pred(r)} {",
+			"\t\t// push_back(r);",
+			"\t\tr += 1;",
+			"\t}",
+			"\t",
+			"\t// ans[l] = r",
+			"\t",
+			"\tif l != r {",
+			"\t\t// pop_front(l);",
+			"\t} else {",
+			"\t\tr += 1;",
+			"\t}",
+			"}",
+		]
+	},
+	
+	"尺取り min-left": {
+		"scope": "rust",
+		"prefix": "snp_min_left",
+		"description": "超過が判定できるとき",
+		"body": [
+			"let mut l = 0;",
+			"for r in 1..=${1:len} {",
+			"\t// push_back(r-1);",
+			"\t",
+			"\t// pred(l) = A[l] を削除すべきか",
+			"\twhile l != r && ${0:pred(l)} {",
+			"\t\t// pop_front(l);",
+			"\t\tl += 1;",
+			"\t}",
+			"\t",
+			"\t// ans[r] = l",
+			"}",
+		]
+	}
+}
