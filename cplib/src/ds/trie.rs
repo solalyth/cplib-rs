@@ -1,8 +1,10 @@
 use std::fmt::Debug;
 
+/// 文字種 `N` の Trie
 pub struct Trie<const N: usize> {
-    /// `dat[(N+1)*idx + 0..N]` は遷移先、`dat[(N+1)*idx + N]` は遷移元である。
+    /// `dat[(N+1)*idx + 0..N]` は遷移先、`dat[(N+1)*idx + N]` は遷移元である。存在しない場合は `!0` が入る。
     dat: Vec<usize>,
+    /// 実際に使用しているノード数
     len: usize
 }
 
@@ -13,72 +15,85 @@ impl<const N: usize> Trie<N> {
     
     pub fn len(&self) -> usize { self.len }
     
-    fn new_cell(&mut self) -> usize {
-        if self.dat.len() == self.len * (N+1) {
-            let len = self.dat.len()/(N+1);
-            self.dat.resize(len*(N+1)*2, !0);
-            for i in len..len*2 { self.dat[i*(N+1)+N] = 0; }
+    pub fn clear(&mut self) {
+        for i in 0..(N+1)*self.len {
+            self.dat[i] = !0;
+        }
+        self.len = 1;
+    }
+    
+    fn next_cell(&mut self) -> usize {
+        if self.dat.len() == (N+1) * self.len {
+            self.dat.resize(self.dat.len()*2, !0);
         }
         self.len += 1;
-        self.len - 1
+        self.len-1
     }
     
+    /// 親ノードを返す。
     pub fn parent(&self, idx: usize) -> Option<usize> {
         assert!(idx < self.len);
-        if idx != 0 { Some(self.dat[idx*(N+1)+N]) } else { None }
+        if idx != 0 { Some(self.dat[(N+1)*idx+N]) } else { None }
     }
     
-    /// 次の遷移先が存在するなら返す。
+    /// 遷移先が存在するなら返す。
+    /// 
+    /// # Panics
+    /// 
+    /// - if not `idx < self.len && c < N`
     pub fn check_next(&self, idx: usize, c: usize) -> Option<usize> {
-        assert!(c < N);
-        if self.dat[idx*(N+1)+c] != !0 { Some(self.dat[idx*(N+1)+c]) } else { None }
+        assert!(idx < self.len && c < N);
+        if self.dat[(N+1)*idx+c] != !0 { Some(self.dat[(N+1)*idx+c]) } else { None }
     }
     
-    /// 次の遷移先を返す。存在しない場合はノードを追加する。
+    /// 遷移先を返す。存在しない場合はノードを追加する。
+    /// 
+    /// # Panics
+    /// 
+    /// - if not `idx < self.len && c < N`
     pub fn next(&mut self, idx: usize, c: usize) -> usize {
-        assert!(c < N);
-        if self.dat[idx*(N+1)+c] == !0 {
-            let nx = self.new_cell();
-            self.dat[idx*(N+1)+c] = nx;
-            self.dat[nx*(N+1)+N] = idx;
+        assert!(idx < self.len && c < N);
+        if self.dat[(N+1)*idx+c] == !0 {
+            let nx = self.next_cell();
+            self.dat[(N+1)*idx+c] = nx;
+            self.dat[(N+1)*nx+N] = idx;
         }
-        self.dat[idx*(N+1)+c]
+        self.dat[(N+1)*idx+c]
     }
     
-    pub fn insert(&mut self, s: impl Iterator<Item = usize>) -> Vec<usize> {
+    /// 文字列 `iter` を挿入する。`res[i] = Node of iter[..i]`
+    pub fn insert(&mut self, iter: impl IntoIterator<Item = usize>) -> Vec<usize> {
         let mut res = vec![0];
         let mut cur = 0;
-        for c in s {
+        for c in iter {
             cur = self.next(cur, c);
             res.push(cur);
         }
         res
     }
-    
-    /// Aho-Corasick 法における遷移先を計算する。`(ac, ac_nx)`
+
+    /// Aho-Corasick 法における遷移先を計算する。`res = (ac, ac_nx)`
     /// 
-    /// `ac[i]`: 先頭から pop していって、初めてマッチする遷移先を返す。
-    /// `ac_nx[i*26+c]`: 文字 `c` を追加したときの遷移先を返す。
-    /// 
-    /// 遷移先とは、trie 上に存在する最長 suffix の index のこと。
+    /// `ac[i]`: 先頭から削っていって初めてマッチする Node を返す。ただし `ac[0] = !0`
+    /// `ac_nx[N*i+c]`: ノード `i` が表す文字列に文字 `c` を追加し、(必要ならば先頭から削っていって) 初めてマッチする Node を返す。
     pub fn aho_corasick(&self) -> (Vec<usize>, Vec<usize>) {
-        let mut ac = vec![0; self.len];
+        let mut ac = vec![!0; self.len];
         let mut que = vec![0];
         while let Some(p) = que.pop() {
-            // ac[p] が求まっているものとして、子ノードの ac[c] を求める
+            // 帰納条件: ac[p] が求まっている
             for c in 0..N {
                 let c = self.dat[p*(N+1)+c];
                 if c == !0 { continue; }
-                let mut cur = p;
+                let mut cur = ac[p];
                 ac[c] = loop {
-                    if cur == 0 { break 0; }
-                    cur = ac[cur];
+                    if cur == !0 { break 0; }
                     if self.dat[cur*(N+1)+c] != !0 { break self.dat[cur*(N+1)+c]; }
+                    cur = ac[cur];
                 };
                 que.push(c);
             }
         }
-
+        
         let mut ac_nx = vec![0; self.len*N];
         for i in 0..ac.len() {
             for c in 0..N {

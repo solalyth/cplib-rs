@@ -18,6 +18,8 @@ pub mod ds {
     pub mod ordered;
     pub mod trie;
     
+    pub mod rolling_hash_deque;
+    
     // pub mod light_splay_tree;
     // pub mod super_splay_tree;
     

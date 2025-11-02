@@ -159,7 +159,7 @@ macro_rules! impl_primitive {
         }
     )+ }
 }
-impl_primitive!(char, u32, u64, u128, usize, i32, i64, i128, f32, f64, &str, &String);
+impl_primitive!(char, u32, u64, u128, usize, i32, i64, i128, f32, f64, &str, &String, String);
 
 impl Primitive for u8 {
     fn fmt(&self, buf: &mut String) {

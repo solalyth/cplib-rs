@@ -105,14 +105,14 @@ macro_rules! max {
     ($($vl:expr),+) => { [$($vl),+].into_iter().reduce(|x,y| if x >= y {x} else {y}).unwrap() }
 }
 
-/// `values < dst` であるとき `true` を返す。
+/// `min(values) < dst` であるとき `true` を返す。
 #[macro_export]
 macro_rules! chmin {
     ($dst:expr; $v:expr) => { { let v = $v; if v < $dst { $dst = v; true } else { false } } };
     ($dst:expr; $($vl:expr),+) => { crate::chmin!($dst; crate::min!($($vl),+)) }
 }
 
-/// `dst < values` であるとき `true` を返す。
+/// `dst < max(values)` であるとき `true` を返す。
 #[macro_export]
 macro_rules! chmax {
     ($dst:expr; $v:expr) => { { let v = $v; if $dst < v { $dst = v; true } else { false } } };
@@ -149,15 +149,4 @@ macro_rules! safe_pow {
             res.rem_euclid(m)
         }
     } }
-}
-
-
-
-#[macro_export]
-macro_rules! cum {
-    ($iter:expr) => {{
-        let mut cum = vec![0];
-        for (i, v) in $iter.enumerate() { cum.push(cum[i] + v); }
-        cum
-    }};
 }
