@@ -1,12 +1,13 @@
 use std::{fmt::Debug, mem::replace, ops::{Index, IndexMut, RangeBounds}, slice::SliceIndex};
 use crate::cplib::util::func::to_bounds;
 
-/// Operator for [`Segtree`], [`super::sparse_segtree::SparseSegtree`]
+/// Operator for [`Segtree`], [`crate::ds::sparse_segtree::SparseSegtree`]
 /// 
-/// 遅延セグ木なら `id_value`, `prod_value`, `act_value`, `prod_lazy` を実装する。  
-/// 遅延なしセグ木なら `id_value`, `prod_value` のみの実装で動く。
+/// `apply` を利用しないなら `id_value`, `prod_value` のみの実装で動く。
 #[allow(unused_variables)]
 pub trait SegtreeOp: Sized {
+    const BEATS: bool = false;
+    
     type Value: Clone + Debug;
     type Lazy: Clone;
     
@@ -16,8 +17,8 @@ pub trait SegtreeOp: Sized {
     /// `Value` の積を返す。
     fn prod_value(lhs: &Self::Value, rhs: &Self::Value) -> Self::Value;
     
-    /// `Value` に `lazy` を作用させる。
-    fn act_value(value: &mut Self::Value, lazy: &Self::Lazy) {}
+    /// `value` に `lazy` を作用させる。成功した場合は作用させて `true` を返し、失敗した場合は何もせず `false` を返すこと。
+    fn act_value(value: &mut Self::Value, lazy: &Self::Lazy) -> bool { true }
     
     /// `lazy` の上から `ad` を合成させる。
     fn prod_lazy(lazy: &mut Self::Lazy, ad: &Self::Lazy) {}
@@ -29,9 +30,9 @@ pub trait SegtreeOp: Sized {
 
 
 
-/// 遅延可能セグメント木
+/// 遅延可能 Beats! 可能セグメント木
 /// 
-/// `lazy[i]` には `i` の子孫が反映待ちである `Lazy` が入る。
+/// `lazy[i]` には `tree[i]` の子孫が受ける作用が入る。特に、`tree[i]` は `lazy[i]` が既に作用されている。
 /// 
 /// # 搭載機能
 /// 
@@ -88,14 +89,6 @@ impl<Op: SegtreeOp> Segtree<Op> {
         Op::prod_value(&rl, &rr)
     }
     
-    // /// for debug
-    // pub fn fold_naive(&self, range: impl RangeBounds<usize>) -> Op::Value {
-    //     let mut seg = self.clone();
-    //     let [l, r] = to_bounds(range, seg.len()).map(|v| v+seg.len());
-    //     for i in 1..seg.len() { seg.push(i); }
-    //     (l..r).fold(Op::id_value(), |acc, i| Op::prod_value(&acc, &seg.tree[i]))
-    // }
-    
     pub fn apply(&mut self, range: impl RangeBounds<usize>, lazy: Op::Lazy) {
         let [l, r] = to_bounds(range, self.len()).map(|v| v + self.len());
         if r == self.len() { return; }
@@ -104,8 +97,8 @@ impl<Op: SegtreeOp> Segtree<Op> {
         
         let (mut s, mut t) = (l, r);
         while s < t {
-            if s&1 == 1 { Op::act_value(&mut self.tree[s], &lazy); self.comp_lazy(s, &lazy); s += 1; }
-            if t&1 == 1 { t -= 1; Op::act_value(&mut self.tree[t], &lazy); self.comp_lazy(t, &lazy); }
+            if s&1 == 1 { self.node_apply(s, &lazy); s += 1; }
+            if t&1 == 1 { t -= 1; self.node_apply(t, &lazy); }
             s >>= 1; t >>= 1;
         }
         
@@ -179,19 +172,28 @@ impl<Op: SegtreeOp> Segtree<Op> {
         l+1 - self.len()
     }
     
-    
+    /// `tree[i]` に `lazy` を作用させ、`lazy[i]` に `lazy` を追加する。
+    fn node_apply(&mut self, i: usize, lazy: &Op::Lazy) {
+        if Op::BEATS {
+            self.comp_lazy(i, lazy);
+            if !Op::act_value(&mut self.tree[i], lazy) {
+                self.push(i);
+                self.update(i);
+            }
+        } else {
+            Op::act_value(&mut self.tree[i], lazy);
+            self.comp_lazy(i, lazy);
+        }
+    }
     
     /// `i` の子に `lazy[i]` を作用・伝搬させる。
     #[track_caller]
     fn push(&mut self, i: usize) {
-        debug_assert!(i != 0);
         debug_assert!(i < self.len());
         
         let Some(lazy) = replace(&mut self.lazy[i], None) else { return };
-        Op::act_value(&mut self.tree[2*i], &lazy);
-        Op::act_value(&mut self.tree[2*i+1], &lazy);
-        self.comp_lazy(2*i, &lazy);
-        self.comp_lazy(2*i+1, &lazy);
+        self.node_apply(2*i, &lazy);
+        self.node_apply(2*i+1, &lazy);
     }
     
     /// `tree[i]` を子から再計算する。
@@ -212,11 +214,6 @@ impl<Op: SegtreeOp> Segtree<Op> {
     // fn dbg_range(&self, i: usize) -> (usize, usize) {
     //     let d = self.depth - (i.ilog2()+1);
     //     ((i << d) - self.len(), (i+1 << d) - self.len())
-    // }
-    
-    // /// for debug.
-    // pub fn push_all(&mut self) {
-    //     for i in 1..self.len() { self.push(i); }
     // }
 }
 
