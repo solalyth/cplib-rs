@@ -2,7 +2,7 @@ pub use {
     // atcoder, yukicoder
     proconio::{
         input, input_interactive,
-        marker::{Bytes as bytes, Chars as chars, Usize1 as usize1}
+        marker::{Chars as chars, Usize1 as usize1}
     },
     
     // atcoder only

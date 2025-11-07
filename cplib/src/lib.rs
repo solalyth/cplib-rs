@@ -6,6 +6,7 @@ pub const SUBMISSION: bool = false;
 
 
 pub mod prelude;
+pub mod debug;
 
 pub mod ds {
     pub mod unionfind;
@@ -16,7 +17,6 @@ pub mod ds {
     pub mod convex_hull_trick;
     
     pub mod ordered;
-    pub mod trie;
     
     pub mod rolling_hash_deque;
     
@@ -41,8 +41,8 @@ pub mod algo {
 
 pub mod graph {
     pub mod scc;
-    
-    pub mod functional;
+    pub mod functional_graph;
+    pub mod trie;
     // pub mod tree;
 }
 

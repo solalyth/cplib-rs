@@ -1,3 +1,5 @@
+//! struct [`HashDeque`]
+//! 
 //! # Todo
 //! 
 //! いつか `HashDequeSlice` と比較を書く。
@@ -11,6 +13,7 @@ use crate::cplib::{algo::rolling_hash::Hash, util::func::to_bounds};
 
 use std::{collections::VecDeque, ops::RangeBounds};
 
+/// 区間ハッシュを `O(log(len))` で求められる。
 pub struct HashDeque(VecDeque<Hash>);
 
 impl HashDeque {
@@ -18,14 +21,18 @@ impl HashDeque {
         Self(VecDeque::from([Hash::new(0)]))
     }
     
-    pub fn len(&self) -> usize {
-        self.0.len()-1
-    }
+    pub fn len(&self) -> usize { self.0.len()-1 }
     
+    /// # Panics
+    /// 
+    /// - if not `v < MOD = 2^61 - 1`
     pub fn push_back(&mut self, v: u64) {
         self.0.push_back(self.0.back().unwrap().push(v));
     }
     
+    /// # Panics
+    /// 
+    /// - if not `v < MOD = 2^61 - 1`
     pub fn push_front(&mut self, v: u64) {
         self.0.push_front(self.0.front().unwrap().push_inv(v));
     }
@@ -50,6 +57,7 @@ impl HashDeque {
     //     HashDequeSlice { ptr: self, l, r }
     // }
     
+    /// `deq[range]` のハッシュを返す。`O(log(len))`
     pub fn fold(&self, range: impl RangeBounds<usize>) -> Hash {
         let [l, r] = to_bounds(range, self.len());
         self.0[r] - (self.0[l] << r-l)

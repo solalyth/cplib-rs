@@ -1,4 +1,4 @@
-//! 出力用
+//! 標準出力を楽にするライブラリ
 
 #![allow(static_mut_refs, non_camel_case_types)]
 

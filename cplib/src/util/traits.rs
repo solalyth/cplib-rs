@@ -2,8 +2,7 @@
 //! 
 //! + [`Grid`]
 //! + [`CharUtil`]
-//! + [`SaturatingPow`]
-//! + [`GetOrInsert`]
+//! + [`MapInit`]
 
 
 /// trait for `[usize; 2]`, `[i64; 2]`

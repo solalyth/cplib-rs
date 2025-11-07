@@ -3,7 +3,7 @@ mod external {
         // atcoder, yukicoder
         proconio::{
             input, input_interactive,
-            marker::{Bytes as bytes, Chars as chars, Usize1 as usize1}
+            marker::{Chars as chars, Usize1 as usize1}
         },
         
         // atcoder only
@@ -22,6 +22,7 @@ mod cplib {
     pub const SUBMISSION: bool = true;
     
     import!("prelude");
+    import!("debug");
     
     pub mod ds {
         import!("ds/unionfind");
@@ -30,7 +31,6 @@ mod cplib {
         // import!("ds/foldable_deque");
         // import!("ds/splay_tree");
         // import!("ds/sparse_segtree");
-        // import!("ds/trie");
         
         // import!("ds/ordered");
         
@@ -47,6 +47,7 @@ mod cplib {
     }
     
     pub mod graph {
+        import!("graph/trie");
         // import!("graph/tree");
         // import!("graph/scc");
         // import!("graph/functional");

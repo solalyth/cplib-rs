@@ -62,11 +62,23 @@ pub fn base_invpow(e: usize) -> [u128; 2] {
 pub struct Hash(pub(crate) [u64; 2]);
 
 impl Hash {
-    pub const fn new(v: u64) -> Hash { Hash([rem(v as u128); 2]) }
+    /// # Panics
+    /// 
+    /// - if not `v < MOD = 2^61 - 1`
+    pub const fn new(v: u64) -> Hash { assert!(v < MOD as u64); Hash([rem(v as u128); 2]) }
     
     /// `[A] -> [A, v]`
+    /// 
+    /// # Panics
+    /// 
+    /// - if not `v < MOD = 2^61 - 1`
     pub fn push(self, v: u64) -> Hash { (self << 1) + Hash::new(v) }
+    
     /// `[A, v] -> [A]`
+    /// 
+    /// # Panics
+    /// 
+    /// - if not `v < MOD = 2^61 - 1`
     pub fn push_inv(self, v: u64) -> Hash { self-Hash::new(v) >> 1 }
     
     pub fn concat(self, r: Self, rlen: usize) -> Self { (self << rlen) + r }
