@@ -10,12 +10,6 @@ pub use {
     superslice::Ext,
     num_integer::{gcd, lcm, Roots},
     // num_bigint::BigUint,
-    ac_library::{self, ModInt998244353 as Mint},
+    ac_library,
     rand
 };
-
-#[cfg(feature = "un_contest")]
-mod util;
-
-#[cfg(feature = "un_contest")]
-pub use util::*;

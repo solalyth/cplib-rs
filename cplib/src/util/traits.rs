@@ -11,7 +11,7 @@ pub trait Grid: Copy + Default {
     const AROUND: [[i64; 2]; 8] = [[0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [-1, 1], [1, -1], [1, 1]];
     fn add(self, rhs: [i64; 2]) -> Self;
     fn add_char(self, c: char, n: i64) -> Self {
-        let mut d = Self::AROUND[match c { 'L' => 0, 'R' => 1, 'U' => 2, 'D' => 3, _ => unreachable!() }];
+        let mut d = Self::AROUND[match c { 'L' => 2, 'R' => 3, 'U' => 1, 'D' => 0, _ => unreachable!() }];
         d[0] *= n; d[1] *= n;
         self.add(d)
     }
@@ -74,6 +74,7 @@ pub trait CharUtil: Clone {
     const UPPER: [Self; 26];
     const NUMBER: [Self; 10];
     
+    fn us(self) -> usize;
     fn parse_lower(self) -> usize;
     fn parse_upper(self) -> usize;
     fn parse_digit(self) -> usize;
@@ -100,7 +101,7 @@ impl CharUtil for char {
         res
     };
     
-    // ('a'..='z').contains(&self)
+    fn us(self) -> usize { (self as u8 - 65 & 223) as usize }
     fn parse_lower(self) -> usize { debug_assert!('a' <= self && self <= 'z'); self as usize - 97 }
     fn parse_upper(self) -> usize { debug_assert!('A' <= self && self <= 'Z'); self as usize - 65 }
     fn parse_digit(self) -> usize { debug_assert!('0' <= self && self <= '9'); self as usize - 48 }
@@ -141,3 +142,37 @@ impl<K: Ord, V> MapInit for BTreeMap<K, V> {
         self.entry(key).or_insert_with(init)
     }
 }
+
+
+
+pub trait VecSplit {
+    type Output;
+    fn split(self) -> Self::Output;
+}
+
+impl<T0, T1> VecSplit for Vec<(T0, T1)> {
+    type Output = (Vec<T0>, Vec<T1>);
+    fn split(self) -> Self::Output {
+        let mut res = (vec![], vec![]);
+        for e in self { res.0.push(e.0); res.1.push(e.1); }
+        res
+    }
+}
+
+impl<T0, T1, T2> VecSplit for Vec<(T0, T1, T2)> {
+    type Output = (Vec<T0>, Vec<T1>, Vec<T2>);
+    fn split(self) -> Self::Output {
+        let mut res = (vec![], vec![], vec![]);
+        for e in self { res.0.push(e.0); res.1.push(e.1); res.2.push(e.2); }
+        res
+    }
+}
+
+// impl<T0, T1, T2, T3> VecSplit for Vec<(T0, T1, T2, T3)> {
+//     type Output = (Vec<T0>, Vec<T1>, Vec<T2>, Vec<T3>);
+//     fn split(self) -> Self::Output {
+//         let mut res = (vec![], vec![], vec![], vec![]);
+//         for e in self { res.0.push(e.0); res.1.push(e.1); res.2.push(e.2); res.3.push(e.3); }
+//         res
+//     }
+// }

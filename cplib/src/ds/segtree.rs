@@ -1,3 +1,5 @@
+//! 遅延可能 Beats! 可能セグメント木
+
 use std::{fmt::Debug, mem::replace, ops::{Index, IndexMut, RangeBounds}, slice::SliceIndex};
 use crate::cplib::util::func::to_bounds;
 
@@ -24,7 +26,7 @@ pub trait SegtreeOp: Sized {
     fn prod_lazy(lazy: &mut Self::Lazy, ad: &Self::Lazy) {}
     
     fn segtree_new(len: usize) -> Segtree<Self> { Segtree::new(len) }
-    fn segtree_from_iter(iter: impl Iterator<Item = Self::Value>) -> Segtree<Self> { Segtree::from_iter(iter) }
+    fn segtree_from_iter(iter: impl IntoIterator<Item = Self::Value>) -> Segtree<Self> { Segtree::from_iter(iter) }
 }
 
 
@@ -36,7 +38,8 @@ pub trait SegtreeOp: Sized {
 /// 
 /// # 搭載機能
 /// 
-/// - `Clone`, `Debug`
+/// - [`Clone`], [`Debug`]
+/// - [`Index`], [`IndexMut`] (遅延を解消する必要がないときのみ)
 pub struct Segtree<Op: SegtreeOp> {
     tree: Vec<Op::Value>,
     /// `lazy[i]` = `i` の子孫が反映待ちである `Lazy`
@@ -61,17 +64,20 @@ impl<Op: SegtreeOp> Segtree<Op> {
         &self.tree[i]
     }
     
-    pub fn set(&mut self, mut i: usize, f: impl FnOnce(&mut Op::Value)) {
+    #[track_caller]
+    pub fn set<T>(&mut self, mut i: usize, f: impl FnOnce(&mut Op::Value) -> T) -> T {
         i += self.len();
         for j in (1..self.depth).rev() { self.push(i >> j); }
-        f(&mut self.tree[i]);
+        let res = f(&mut self.tree[i]);
         for j in 1..self.depth { self.update(i >> j); }
+        res
     }
     
-    pub fn entry(&mut self) -> Entry<'_, Op> {
+    pub fn push_all(&mut self) {
         for i in 1..self.len() { self.push(i); }
-        Entry { seg: self, changed: false }
     }
+    
+    
     
     pub fn fold(&mut self, range: impl RangeBounds<usize>) -> Op::Value {
         let [mut l, mut r] = to_bounds(range, self.len()).map(|v| v+self.len());
@@ -187,7 +193,7 @@ impl<Op: SegtreeOp> Segtree<Op> {
     }
     
     /// `i` の子に `lazy[i]` を作用・伝搬させる。
-    #[track_caller]
+    // #[track_caller]
     fn push(&mut self, i: usize) {
         debug_assert!(i < self.len());
         
@@ -244,30 +250,16 @@ impl<Op: SegtreeOp> FromIterator<Op::Value> for Segtree<Op> {
 
 
 
-pub struct Entry<'a, Op: SegtreeOp> {
-    seg: &'a mut Segtree<Op>,
-    changed: bool
-}
-
-impl<Op: SegtreeOp, I: SliceIndex<[Op::Value]>> Index<I> for Entry<'_, Op> {
+impl<Op: SegtreeOp, I: SliceIndex<[Op::Value]>> Index<I> for Segtree<Op> {
     type Output = I::Output;
     fn index(&self, index: I) -> &Self::Output {
-        Index::index(&self.seg.tree[self.seg.len()..], index)
+        Index::index(&self.tree[self.len()..], index)
     }
 }
 
-impl<Op: SegtreeOp, I: SliceIndex<[Op::Value]>> IndexMut<I> for Entry<'_, Op> {
+impl<Op: SegtreeOp, I: SliceIndex<[Op::Value]>> IndexMut<I> for Segtree<Op> {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        let len = self.seg.len();
-        self.changed = true;
-        IndexMut::index_mut(&mut self.seg.tree[len..], index)
-    }
-}
-
-impl<Op: SegtreeOp> Drop for Entry<'_, Op> {
-    fn drop(&mut self) {
-        if self.changed {
-            for i in (1..self.seg.len()).rev() { self.seg.update(i); }
-        }
+        let len = self.len();
+        IndexMut::index_mut(&mut self.tree[len..], index)
     }
 }

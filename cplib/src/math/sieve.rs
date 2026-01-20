@@ -70,7 +70,7 @@ impl LpfSieve {
         init
     }
     
-    /// 正整数 `n` を素因数分解した結果 `(p, exp)` の列を返す。`factorize_big(1) == vec![]` である。
+    /// 正整数 `n` を素因数分解した結果 `(p, exp)` の列を返す。`factorize(1) == vec![]` である。
     /// 
     /// 前計算した lpf テーブルで計算する。
     /// 
@@ -113,6 +113,17 @@ impl LpfSieve {
                 for _ in 0..e { k *= p; v.push(v[i]*k); }
             }
         })
+    }
+    
+    pub fn divisors_manual<'a>(pe: impl IntoIterator<Item = &'a (usize, usize)> + 'a) -> Vec<usize> {
+        let mut res = vec![1];
+        for &(p, e) in pe.into_iter() {
+            for i in 0..res.len() {
+                let mut k = res[i];
+                for _ in 0..e { k *= p; res.push(k); }
+            }
+        }
+        res
     }
     
     

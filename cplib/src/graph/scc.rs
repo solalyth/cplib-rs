@@ -2,8 +2,8 @@ use std::mem::replace;
 
 pub struct Scc {
     n: usize,
-    e: Vec<Vec<usize>>,
-    inv: Vec<Vec<usize>>
+    pub e: Vec<Vec<usize>>,
+    pub inv: Vec<Vec<usize>>
 }
 
 impl Scc {
@@ -11,7 +11,7 @@ impl Scc {
         Self { n, e: vec![vec![]; n], inv: vec![vec![]; n] }
     }
     
-    pub fn add(&mut self, u: usize, v: usize) {
+    pub fn add_edge(&mut self, u: usize, v: usize) {
         self.e[u].push(v);
         self.inv[v].push(u);
     }

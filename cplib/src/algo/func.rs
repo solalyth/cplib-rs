@@ -26,3 +26,27 @@ pub fn run_length<T: Eq>(iter: impl IntoIterator<Item = T>) -> Vec<(T, usize)> {
     }
     res
 }
+
+
+/// `prefix[i] = fold(0..i)`
+/// 
+/// `suffix[i]` が欲しいときは `iter` を逆順にして渡したあと `reverse` を取ればよい。
+pub fn prefix_fold<T, U>(init: T, iter: impl IntoIterator<Item = U>, mut f: impl FnMut(&T, U) -> T) -> Vec<T> {
+    let mut res = vec![init];
+    for u in iter { res.push(f(res.last().unwrap(), u)); }
+    res
+}
+
+/// `suffix[i] = fold(i..)`
+pub fn suffix_fold<T, U>(init: T, iter: impl Iterator<Item = U> + DoubleEndedIterator, mut f: impl FnMut(&T, U) -> T) -> Vec<T> {
+    let mut res = vec![init];
+    for u in iter.rev() { res.push(f(res.last().unwrap(), u)); }
+    res.reverse();
+    res
+}
+
+
+
+pub fn binary_search(low: usize, high: usize) -> Option<usize> {
+    if 1 < high.wrapping_sub(low) { Some(high.wrapping_add(low)/2) } else { None }
+}

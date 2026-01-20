@@ -1,22 +1,22 @@
 use std::{fmt::{Debug, Display}, ops::{Add, Mul, Neg, Sub}};
 
-pub const M: u64 = 998244353;
-pub const R: u64 = (1<<32) % M;
-pub const R2: u64 = (R*R) % M;
-const P: u64 = 998244351;
-const MASK: u64 = (1<<32)-1;
+pub const M: usize = 998244353;
+pub const R: usize = (1<<32) % M;
+pub const R2: usize = (R*R) % M;
+const P: usize = 998244351;
+const MASK: usize = (1<<32)-1;
 
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct Fp(u64);
+pub struct Fp(usize);
 
 impl Fp {
-    pub const fn new(x: u64) -> Self {
+    pub const fn new(x: usize) -> Self {
         Fp::prod_r(x % M)
     }
     
     /// `x < 4.6 * 998244353` くらいなら可能。
-    pub const fn raw(x: u64) -> Self {
+    pub const fn raw(x: usize) -> Self {
         assert!(x < 4599987193);
         Fp::prod_r(x)
     }
@@ -25,7 +25,8 @@ impl Fp {
         Fp::prod_rinv(self.0 * rhs.0)
     }
     
-    pub const fn pow(mut self, mut exp: u64) -> Self {
+    /// `x^0 == 1` としている。
+    pub const fn pow(mut self, mut exp: usize) -> Self {
         if exp == 0 { return Fp::new(1); }
         let mut res = self;
         exp = (exp-1) % (M-1);
@@ -41,16 +42,16 @@ impl Fp {
     
     pub const fn inv(self) -> Self { assert!(self.0 != 0); self.pow(M-2) }
     
-    pub const fn val(self) -> u64 { Fp::prod_rinv(self.0).0 }
+    pub const fn val(self) -> usize { Fp::prod_rinv(self.0).0 }
     
     
     
-    const fn prod_rinv(x: u64) -> Self {
+    const fn prod_rinv(x: usize) -> Self {
         let t = (((x & MASK)*P & MASK)*M + x) >> 32;
         Fp(if t < M { t } else { t-M })
     }
     
-    const fn prod_r(x: u64) -> Self {
+    const fn prod_r(x: usize) -> Self {
         Fp::prod_rinv(x * R2)
     }
 }

@@ -2,7 +2,7 @@
 	"Initialize for AtCoder": {
 		"scope": "rust",
 		"prefix": "init",
-		"body": "#![allow(unused_must_use, non_snake_case, unused_labels, unused_imports, non_upper_case_globals)]\nuse external::*;\nuse cplib::prelude::*;\nuse nest as vec;\nconst INTERACTIVE: bool = false;\n// const INTERACTIVE: bool = true; use input_interactive as input;\n\nfn solve() {\n\tinput! {\n\t\t$1\n\t}\n\t\n\t$0\n}\n\n\n\nfn main() { out::init(INTERACTIVE || !SUBMISSION); solve(); out::print() }\n"
+		"body": "#![allow(unused_must_use, non_snake_case, unused_labels, unused_imports, non_upper_case_globals)]\nuse external::*;\nuse cplib::prelude::*;\nuse nest as vec;\nconst INTERACTIVE: bool = false;\n// const INTERACTIVE: bool = true; use input_interactive as input;\n#[allow(dead_code)] type Mint = ac_library::ModInt998244353;\n\nfn solve() {\n\tinput! {\n\t\t$1\n\t}\n\t\n\t$0\n}\n\n\n\nfn main() { out::init(INTERACTIVE || !SUBMISSION); solve(); out::print() }\n"
 	},
 	
 	"crate::epr": {
@@ -77,37 +77,22 @@
 		]
 	},
 	
-	"Load Graph": {
+	"collect_vec": {
 		"scope": "rust",
-		"prefix": "snp_graph",
-		"body": [
-			"let mut E = vec![void; N];",
-			"for &(u, v) in &${1:UV} {",
-			"\tE[u].push(v);",
-			"\tE[v].push(u);",
-			"}",
-		]
+		"prefix": "col",
+		"body": "collect::<Vec<${1:_}>>()"
 	},
 	
-	"Load Tree Graph": {
+	"Sub Input": {
 		"scope": "rust",
-		"prefix": "snp_tree",
+		"prefix": "snp_sub_input",
 		"body": [
-			"let mut E = vec![void; N];",
-			"for &(u, v) in &${1:UV} {",
-			"\tE[u].push(v);",
-			"\tE[v].push(u);",
-			"}",
-			"let mut par = vec![0; N];",
-			"let mut order = vec![0];",
-			"for mut i in 0..N {",
-			"\ti = order[i];",
-			"\tfor &j in &E[i] {",
-			"\t\tif j == par[i] { continue; }",
-			"\t\tpar[j] = i;",
-			"\t\torder.push(j);",
-			"\t}",
-			"}",
+			"let stdin = std::io::read_to_string(std::io::stdin()).unwrap();",
+			"let mut stdin = stdin.split_whitespace();",
+			"macro_rules! input { (\\$t:ty) => { stdin.next().unwrap().parse::<\\$t>().unwrap() }; }",
+			"#[allow(unused_macros)]",
+			"macro_rules! input_vec { (\\$t:ty; \\$n:expr) => { (0..\\$n).map(|_| stdin.next().unwrap().parse::<\\$t>().unwrap()).collect::<Vec<_>>() }; }",
+			"$0"
 		]
-	},
+	}
 }

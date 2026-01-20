@@ -127,7 +127,7 @@ fn ifft(fft: &[Fp], log: usize) -> Vec<Fp> {
         }
     }
     
-    let inv_n = Fp::raw((1<<log) as u64).inv();
+    let inv_n = Fp::raw(1<<log).inv();
     for x in &mut a { *x = *x * inv_n; }
     
     a

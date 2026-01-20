@@ -2,14 +2,16 @@
 
 use std::fmt::Debug;
 
-/// 文字種 `N` の Trie を持つ構造体。削除はできない。
+const MASK: usize = (1<<32)-1;
+
+/// 文字種 `N` の Trie を持つ構造体。
 /// 
 /// # Memo
 /// 
-/// 辺の削除・付け替えがしたいケースはある？良い感じに操作しないとループができて嫌そう。
+/// 辺の付け替えがしたいケースはある？良い感じに操作しないとループができて嫌そう。
 pub struct Trie<const N: usize> {
     /// `dat[(N+1)*idx + c=0..N]`: 遷移先
-    /// `dat[(N+1)*idx + N]`: 遷移元
+    /// `dat[(N+1)*idx + N]`: (遷移c)<<32 + 遷移元
     dat: Vec<usize>,
     /// 使用しているノード数
     len: usize
@@ -36,10 +38,14 @@ impl<const N: usize> Trie<N> {
         self.len-1
     }
     
-    /// 親ノードを返す。
-    pub fn parent(&self, idx: usize) -> Option<usize> {
-        assert!(idx < self.len);
-        if idx == 0 { None } else { Some(self.dat[(N+1)*idx+N]) }
+    /// 親ノード及び遷移 `c` を返す。
+    pub fn parent(&self, idx: usize) -> Option<(usize, usize)> {
+        if idx != 0 {
+            let t = self.dat[(N+1)*idx+N];
+            Some((t & MASK, t >> 32))
+        } else {
+            None
+        }
     }
     
     /// 遷移先が存在するなら返す。
@@ -49,7 +55,8 @@ impl<const N: usize> Trie<N> {
     /// - if not `idx < self.len && c < N`
     pub fn check_next(&self, idx: usize, c: usize) -> Option<usize> {
         assert!(idx < self.len && c < N);
-        if self.dat[(N+1)*idx+c] != !0 { Some(self.dat[(N+1)*idx+c]) } else { None }
+        let t = self.dat[(N+1)*idx+c];
+        if t != !0 { Some(t) } else { None }
     }
     
     /// 遷移先を返す。存在しない場合はノードを追加する。
@@ -62,7 +69,7 @@ impl<const N: usize> Trie<N> {
         if self.dat[(N+1)*idx+c] == !0 {
             let nx = self.next_cell();
             self.dat[(N+1)*idx+c] = nx;
-            self.dat[(N+1)*nx+N] = idx;
+            self.dat[(N+1)*nx+N] = (c<<32) + idx;
         }
         self.dat[(N+1)*idx+c]
     }
@@ -84,8 +91,8 @@ impl<const N: usize> Trie<N> {
         for i in 0..self.len {
             // next[..i], fail[..=i] が計算されている
             for c in 0..N {
-                let (j, fc) = (self.dat[(N+1)*i+c], dat[(N+1)*dat[(N+1)*i+N]+c]);
-                dat[(N+1)*i+c] = if j != !0 { dat[(N+1)*j+N] = fc; j } else { fc };
+                let (j, fj) = (self.dat[(N+1)*i+c], dat[(N+1)*dat[(N+1)*i+N]+c]);
+                dat[(N+1)*i+c] = if j != !0 { dat[(N+1)*j+N] = fj; j } else { fj };
             }
         }
         
@@ -96,8 +103,10 @@ impl<const N: usize> Trie<N> {
 impl<const N: usize> Debug for Trie<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         assert!(N <= 26);
-        let mut s = vec![String::new(); self.len];
+        let mut s = vec![String::from("(deleted)"); self.len];
+        s[0].clear();
         for i in 0..self.len {
+            if &s[i] == "(deleted)" { continue; }
             for c in 0..N {
                 let j = self.dat[(N+1)*i+c];
                 if j == !0 { continue; }
@@ -107,7 +116,7 @@ impl<const N: usize> Debug for Trie<N> {
         
         let mut res = String::new();
         for s in &s[1..] { res += ", "; res += s; }
-        write!(f, "[*{res}]")
+        write!(f, "[(empty){res}]")
     }
 }
 

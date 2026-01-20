@@ -2,7 +2,7 @@
 //! 
 //! 法を `2^61 - 1` とし、基数として `37, 43` を採用した。
 
-use std::ops::{Add, Shl, Shr, Sub};
+use std::ops::{Add, Deref, Shl, Shr, Sub};
 
 
 
@@ -55,10 +55,10 @@ pub fn base_invpow(e: usize) -> [u128; 2] {
 /// 
 /// # Features
 /// 
-/// - `Clone, Copy, PartialEq, Eq, Debug, Hash`
 /// - `Add, Sub, Shl<usize>, Shr<usize>`
+/// - `Deref<Target = [u64; 2]>`
 /// - `FromIterator<u64>`
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub struct Hash(pub(crate) [u64; 2]);
 
 impl Hash {
@@ -82,6 +82,8 @@ impl Hash {
     pub fn push_inv(self, v: u64) -> Hash { self-Hash::new(v) >> 1 }
     
     pub fn concat(self, r: Self, rlen: usize) -> Self { (self << rlen) + r }
+    
+    pub fn inner(&self) -> &[u64; 2] { &self.0 }
 }
 
 
@@ -117,6 +119,11 @@ impl Shr<usize> for Hash {
         for i in 0..2 { self.0[i] = rem(self.0[i] as u128 * bp[i]); }
         self
     }
+}
+
+impl Deref for Hash {
+    type Target = [u64; 2];
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 impl FromIterator<u64> for Hash {

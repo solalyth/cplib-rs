@@ -7,19 +7,39 @@ pub fn lcm(a: usize, b: usize) -> Option<usize> {
     (a/gcd(a, b)).checked_mul(b)
 }
 
-/// `ax + by = gcd(a,b)` を満たす `(x, y, gcd(a, b))` を返す。ただし `0 <= gcd(a,b)`, `max(|x|, |y|) <= max(|a|, |b|)` を満たす。
-pub fn extended_gcd(mut a: i64, mut b: i64) -> (i64, i64, i64) {
-    if (a, b) == (0, 0) { return (0, 0, 0); }
-    let mut st = vec![];
-    while b != 0 { st.push(a/b); (a, b) = (b, a%b); }
-    let (mut x, mut y) = (a.signum(), 0);
-    for z in st.into_iter().rev() { (x, y) = (y, x - z*y); }
-    (x, y, a.abs())
+/// `ax + by = gcd(a,b)` を満たす `(x, y, gcd(a, b))` を返す。
+/// 
+/// - `a == 0 && b == 0` のとき `(0, 0, 0)` を返す。
+/// - `a == 0` のとき `(0, sgn(b), |b|)` を返し、`b == 0` のとき `(sgn(a), 0, |a|)` を返す。
+/// - そうでないとき、`|x| <= |b|/g` かつ `|y| <= |a|/g` を満たす。
+pub fn extgcd(a: i64, b: i64) -> (i64, i64, i64) {
+    let (mut p0, mut q0, mut r0, mut p1, mut q1, mut r1) = (a.signum(), 0, a.abs(), 0, b.signum(), b.abs());
+    while r1 != 0 {
+        let t = r0/r1;
+        (p0, q0, r0, p1, q1, r1) = (p1, q1, r1, p0 - t*p1, q0 - t*q1, r0 - t*r1);
+    }
+    (p0, q0, r0)
 }
 
+
+/// ベズーの等式 `ax + by = c` を満たす解 `(x, y, dx, dy)` を返す。ただし、`0 <= x < |b|/g` を満たし、`0 < dx` である。
+/// 
+/// # Panics
+/// 
+/// - if `b == 0`
+pub fn bezout(a: i64, b: i64, c: i64) -> Option<(i64, i64, i64, i64)> {
+    assert!(b != 0);
+    let (x, y, g) = extgcd(a, b);
+    if c%g != 0 { return None; }
+    let t = (c/g*x).div_euclid(b/g);
+    Some((c/g*x - t*(b/g), c/g*y + t*(a/g), b.abs()/g, -a*b.signum()/g))
+}
+
+
+
 pub fn modinv(x: usize, m: usize) -> Option<usize> {
-    let (x, _, g) = extended_gcd(x as i64, m as i64);
-    if g == 1 { Some(x.rem_euclid(m as i64) as usize) } else { None }
+    let (y, _, g) = extgcd(x as i64, m as i64);
+    if g == 1 { Some(y.rem_euclid(m as i64) as usize) } else { None }
 }
 
 // pub fn crt((a1, m1): (usize, usize), (a2, m2): (usize, usize)) -> Option<(usize, usize)> {
@@ -34,7 +54,7 @@ pub fn modinv(x: usize, m: usize) -> Option<usize> {
 
 
 /// `x^n mod m` を計算する。`0^0 == 1` とする。
-pub fn mpow(mut x: usize, mut n: usize, m: usize) -> usize {
+pub fn mpow(mut x: u128, mut n: u128, m: u128) -> u128 {
     x %= m;
     if n == 0 { return if x == 0 {0} else {1}; }
     let mut res = 1;
@@ -43,76 +63,6 @@ pub fn mpow(mut x: usize, mut n: usize, m: usize) -> usize {
         x = x*x % m;
         n >>= 1;
     }
-    res
-}
-
-
-
-
-
-
-
-
-/// floor 商列挙 `(l, r, x)`: `for i in l..r, floor(n/i) == x`
-/// 
-/// # Memo
-/// 
-/// `floor(n/i) == x` <==> `floor(n/(x+1)) < i <= floor(n/x)`
-/// 
-/// 区間の形に気をつけると、
-/// 
-/// ```no_run
-/// let b = N.isqrt();
-/// for i in 1..=N/b {
-///     // x = N/i
-/// }
-/// for x in (1..b).rev() {
-///     let xl = N/(x+1);
-///     let xr = N/x;
-///     // for i in (xl, xr], N/i == x
-/// }
-/// ```
-/// 
-/// のようにシンプルに書ける。
-/// 
-/// `N <= x(x+1)` ならば `floor(N/i) = x` となる `i` が高々 1 つであることが示せる。上の実装だと `B = sqrt(N)+1` とすればよい。
-pub fn quotient_floor(n: usize) -> Vec<(usize, usize, usize)> {
-    let mut res = vec![];
-    let b = (n as f64).sqrt() as usize + 1;
-    for i in 1..=n/b {
-        res.push((i, i+1, n/i));
-    }
-    for x in (1..b).rev() {
-        let l = n/(x+1);
-        let r = n/x;
-        if l != r {
-            res.push((l+1, r+1, x));
-        }
-    }
-    // debug_assert!(res.windows(2).all(|w| w[0].1 == w[1].0 && w[0].2 > w[1].2));
-    res
-}
-
-/// ceil 商列挙 `(l, r, x)`: `for i in l..r, ceil(n/i) == x`
-/// 
-/// # Memo
-/// 
-/// `ceil(n/i) == x` <==> `ceil(n/x) <= i < ceil(n/(x-1))`
-/// 
-/// `N <= (x-1)x` ならば `ceil(N/i) = x` となる `i` が高々 1 つであることが示せる。
-pub fn quotient_ceil(n: usize) -> Vec<(usize, usize, usize)> {
-    let mut res = vec![];
-    let b = (n as f64).sqrt() as usize+2;
-    for i in 1..(n+b-1)/b {
-        res.push((i, i+1, (n+i-1)/i));
-    }
-    for x in (2..b).rev() {
-        let l = (n+x-1)/x;
-        let r = (n+x-2)/(x-1);
-        if l != r { res.push((l, r, x)); }
-    }
-    res.push((n, n+1, 1));
-    // debug_assert!(res.windows(2).all(|w| w[0].1 == w[1].0 && w[0].2 > w[1].2));
     res
 }
 
@@ -141,7 +91,6 @@ pub fn partitions(n: usize, s: usize) -> Option<Vec<Vec<usize>>> {
 
 
 pub fn into_ary(mut n: usize, base: usize) -> Vec<usize> {
-    if n == 0 { return vec![]; }
     let mut res = vec![];
     while n != 0 {
         res.push(n%base); n /= base;
@@ -153,4 +102,12 @@ pub fn from_ary(d: &[usize], base: usize) -> usize {
     let mut res = 0;
     for &d in d { res = res*base + d; }
     res
+}
+
+pub fn digit_ary(mut n: usize, base: usize) -> Option<usize> {
+    assert!(2 <= base);
+    if n == 0 { return None; }
+    let mut cnt = 0;
+    while n != 0 { n /= base; cnt += 1; }
+    Some(cnt)
 }

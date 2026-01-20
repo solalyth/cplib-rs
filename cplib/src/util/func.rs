@@ -1,15 +1,7 @@
 use std::ops::{RangeBounds, Bound};
 
-
-
-pub fn binary_search(low: usize, high: usize) -> Option<usize> {
-    if 1 < high.wrapping_sub(low) { Some(low.wrapping_add(high)/2) } else { None }
-}
-
-
-
 /// [`RangeBounds`] を半開区間の境界値 `l..r` に変換する。[`Bound::Unbounded`] は `0..sup` まで広げる。
-/// ただし、区間長が `0` であるときは `[0, 0]` を返す。
+/// ただし、左端が `sup` を超えていたとしても、区間長が `0` であるときは `[0, 0]` を返す。
 /// 
 /// # Panics
 /// 
@@ -34,9 +26,9 @@ pub fn to_bounds(range: impl RangeBounds<usize>, sup: usize) -> [usize; 2] {
 
 
 
-pub(crate) fn join(s: impl Iterator<Item = String>) -> Option<String> {
-    let mut res = s.into_iter().fold(String::new(), |mut acc, e| { acc += &e; acc += ", "; acc });
-    if res.is_empty() { return None; }
-    res.truncate(res.len() - 2);
-    Some(res)
-}
+// pub(crate) fn join(s: impl Iterator<Item = String>) -> Option<String> {
+//     let mut res = s.into_iter().fold(String::new(), |mut acc, e| { acc += &e; acc += ", "; acc });
+//     if res.is_empty() { return None; }
+//     res.truncate(res.len() - 2);
+//     Some(res)
+// }

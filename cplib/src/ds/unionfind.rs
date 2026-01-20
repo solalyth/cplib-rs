@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use crate::cplib::util::func::join;
 
 pub trait Abelian {
     type T: Clone + Eq;
@@ -20,7 +19,7 @@ impl Abelian for Nop {
 
 
 
-/// Potential 付き Union Find (union by size, path compression)
+/// Potentialized Union Find (union by size, path compression)
 /// 
 /// Potential として可換群が乗る。
 /// 
@@ -34,7 +33,7 @@ impl Abelian for Nop {
 /// 
 /// # 例題
 /// 
-/// - https://atcoder.jp/contests/abc328/tasks/abc328_f
+/// - Potentialized Union Find: https://atcoder.jp/contests/abc328/tasks/abc328_f
 pub struct UnionFind<Op: Abelian> {
     par: Vec<usize>,
     size: Vec<usize>,
@@ -72,13 +71,14 @@ impl<Op: Abelian> UnionFind<Op> {
     
     pub fn len(&self) -> usize { self.par.len() }
     
-    pub fn leader(&mut self, i: usize) -> usize {
-        let p = self.par[i];
-        if self.par[p] == p { return p; }
-        let u = self.leader(p);
-        self.diff[i] = Op::add(&self.diff[i], &self.diff[p]);
-        self.par[i] = u;
-        u
+    pub fn leader(&mut self, mut i: usize) -> usize {
+        loop {
+            let p = self.par[i];
+            if self.par[p] == p { return p; }
+            self.diff[i] = Op::add(&self.diff[i], &self.diff[p]);
+            self.par[i] = self.par[p];
+            i = self.par[p];
+        }
     }
     
     pub fn size(&mut self, mut i: usize) -> usize { i = self.leader(i); self.size[i] }
@@ -95,21 +95,22 @@ impl<Op: Abelian> UnionFind<Op> {
     }
     
     /// `P[i] - P[j] = w` となるよう辺を追加する。
-    /// 整合性を保てないとき `None` を返す。元々連結であったとき `Some((common_leader, !0))` を返し、非連結であったとき `Some((new_leader, old_leader))` を返す。
+    /// 整合性を保てないとき `(!0, !0)` を返す。元々連結であったとき `(common_leader, !0)` を返し、非連結であったとき `(new_leader, old_leader)` を返す。
     /// 
     /// 操作前について `size[old] <= size[new]` が保証される。
-    pub fn merge(&mut self, i: usize, j: usize, mut w: Op::T) -> Option<(usize, usize)> {
+    pub fn merge(&mut self, i: usize, j: usize, mut w: Op::T) -> (usize, usize) {
         let (mut old, mut new) = (self.leader(i), self.leader(j));
         w = Op::sub(&Op::add(&w, &self.diff[j]), &self.diff[i]);
-        if old == new { return if w == Op::e() { Some((old, !0)) } else { None } }
+        if old == new { return if w == Op::e() { (old, !0) } else { (!0, !0) } }
         if !(self.size[old] <= self.size[new]) { (old, new) = (new, old); w = Op::inv(&w); }
         self.par[old] = new;
         self.diff[old] = w;
         self.size[new] += self.size[old];
         self.next.swap(i, j);
-        Some((new, old))
+        (new, old)
     }
     
+    /// マージ前における size を返す。
     pub fn size_undo(&self, new: usize, old: usize) -> (usize, usize) {
         (self.size[new] - self.size[old], self.size[old])
     }
@@ -140,10 +141,13 @@ impl<Op: Abelian> Clone for UnionFind<Op> {
 
 impl<Op: Abelian> std::fmt::Debug for UnionFind<Op> where Op::T: Debug {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut uf = self.clone();
-        let g = uf.groups().into_iter().map(|s| {
-            join(s.into_iter().map(|i| format!("{i}({:?})", uf.diff[i]).trim_end_matches("(())").into())).unwrap()
-        });
-        write!(f, "[{}]", join(g.into_iter().map(|s| format!("{{{s}}}"))).unwrap_or(String::new()))
+        let g = self.clone().groups();
+        let mut s = String::new();
+        if std::any::type_name::<Op::T>() == "()" {
+            for g in g { if !g.is_empty() { s += &format!("{g:?}, "); } }
+        } else {
+            panic!();
+        }
+        write!(f, "[ {} ]", &s[..s.len()-2])
     }
 }

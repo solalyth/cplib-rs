@@ -10,7 +10,7 @@ static mut BUFFER: Buffer = Buffer { buf: String::new(), endp: false, prev: Prev
 
 /// # Fields
 /// 
-/// `endp`: `out << end;` で出力するならば `true`
+/// `endp`: `out << end` で出力するかどうか
 pub struct Buffer {
     buf: String,
     endp: bool,
@@ -18,8 +18,6 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    const LEN: usize = 16*1024*1024; // 16MiB, 4e6 chars
-    
     fn print(&mut self) {
         if replace(&mut self.prev, Previous::LineHead) == Previous::LineHead { self.buf.pop(); }
         if crate::cplib::SUBMISSION {
@@ -27,10 +25,11 @@ impl Buffer {
         } else {
             eprint!("\x1b[32m");
             if self.buf.is_empty() {
-                println!(">> (empty)");
+                eprintln!("(empty)");
+                // eprintln!(">> (empty)");
             } else {
                 for s in self.buf.split('\n') {
-                    eprint!(">> ");
+                    // eprint(">> ");
                     println!("{s}");
                 }
             }
@@ -39,7 +38,7 @@ impl Buffer {
         self.buf.clear();
     }
     
-    /// フラグと `sp`
+    /// フラグと `sp` の反映
     fn space(&mut self, sp: bool) {
         let prev = replace(&mut self.prev, if sp {Previous::Space} else {Previous::NoSpace});
         if (sp || prev == Previous::Space) && prev != Previous::LineHead { self.buf.push(' '); }
@@ -64,13 +63,14 @@ enum Previous {
 impl out {
     pub fn init(endp: bool) {
         unsafe {
-            BUFFER.buf.reserve(Buffer::LEN);
+            BUFFER.buf.reserve(1<<24); // 1.6e7
             BUFFER.endp = endp;
         }
     }
     pub fn print() { unsafe { BUFFER.print(); } }
     
-    pub fn space() { unsafe { if BUFFER.prev == Previous::NoSpace { BUFFER.prev = Previous::Space; } } }
+    // pub fn space() { unsafe { if BUFFER.prev == Previous::NoSpace { BUFFER.prev = Previous::Space; } } }
+    
     fn push<T: Primitive>(v: &T) {
         unsafe {
             BUFFER.space(true);
@@ -141,11 +141,6 @@ impl_for_slices!(&[T], &Vec<T>);
 
 
 
-
-
-
-
-
 trait Primitive {
     fn fmt(&self, buf: &mut String);
 }
@@ -162,13 +157,9 @@ macro_rules! impl_primitive {
 impl_primitive!(char, u32, u64, u128, usize, i32, i64, i128, f32, f64, &str, &String, String);
 
 impl Primitive for u8 {
-    fn fmt(&self, buf: &mut String) {
-        buf.push(*self as char);
-    }
+    fn fmt(&self, buf: &mut String) { buf.push(*self as char); }
 }
 
 impl Primitive for bool {
-    fn fmt(&self, buf: &mut String) {
-        *buf += if *self { "Yes" } else { "No" };
-    }
+    fn fmt(&self, buf: &mut String) { *buf += if *self { "Yes" } else { "No" }; }
 }
