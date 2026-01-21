@@ -26,6 +26,15 @@ impl _O {
         unsafe { (P, INV, F, FINV) = (p, inv, f, finv); }
     }
     
+    pub fn MC<const N: usize>(&self, k: [usize; N]) -> usize {
+        let s = k.iter().sum::<usize>();
+        unsafe {
+            let mut res = F[s];
+            for k in k { res = res * FINV[k] % P; }
+            res
+        }
+    }
+    
     pub fn C(&self, n: usize, k: usize) -> usize {
         if n < k { 0 } else { unsafe { F[n] * FINV[k] % P * FINV[n-k] % P } }
     }
