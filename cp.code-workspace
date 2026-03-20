@@ -12,6 +12,7 @@
 			"markdown": false,
 			"scminput": false,
 			"rust": false,
+			"csharp": true,
 			"snippets": true
 		},
 		"terminal.integrated.suggest.enabled": false

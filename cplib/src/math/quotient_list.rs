@@ -2,7 +2,7 @@
 /// 
 /// # Memo
 /// 
-/// `floor(n/i) == x` <==> `floor(n/(x+1)) < i <= floor(n/x)`
+/// `floor(n/i) == x` ⇔ `floor(n/(x+1)) < i <= floor(n/x)`
 /// 
 /// 区間の形に気をつけると、
 /// 
@@ -42,7 +42,7 @@ pub fn quotient_floor(n: usize) -> Vec<(usize, usize, usize)> {
 /// 
 /// # Memo
 /// 
-/// `ceil(n/i) == x` <==> `ceil(n/x) <= i < ceil(n/(x-1))`
+/// `ceil(n/i) == x` ⇔ `ceil(n/x) <= i < ceil(n/(x-1))`
 /// 
 /// `N <= (x-1)x` ならば `ceil(N/i) = x` となる `i` が高々 1 つであることが示せる。
 pub fn quotient_ceil(n: usize) -> Vec<(usize, usize, usize)> {

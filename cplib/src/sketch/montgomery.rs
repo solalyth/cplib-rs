@@ -4,7 +4,7 @@
 /// 
 /// # References
 /// 
-/// + https://rsk0315.hatenablog.com/entry/2022/11/27/060616
+/// + <https://rsk0315.hatenablog.com/entry/2022/11/27/060616>
 ///   - `N -> m, N' -> mont` と読み替えている。
 #[derive(Debug)]
 pub struct Montgomery {

@@ -101,7 +101,9 @@ impl CharUtil for char {
         res
     };
     
-    fn us(self) -> usize { (self as u8 - 65 & 223) as usize }
+    fn us(self) -> usize {
+        if self <= '9' { self as usize - 48 } else { (self as usize & 31) - 1 }
+    }
     fn parse_lower(self) -> usize { debug_assert!('a' <= self && self <= 'z'); self as usize - 97 }
     fn parse_upper(self) -> usize { debug_assert!('A' <= self && self <= 'Z'); self as usize - 65 }
     fn parse_digit(self) -> usize { debug_assert!('0' <= self && self <= '9'); self as usize - 48 }

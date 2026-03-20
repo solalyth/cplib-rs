@@ -26,7 +26,7 @@ const ROOT_INV: [Fp; 23] = {
 
 
 
-pub struct Fps(Vec<Fp>);
+pub struct Fps(pub Vec<Fp>);
 
 impl Fps {
     pub fn new() -> Self { Fps(vec![]) }

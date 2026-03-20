@@ -29,47 +29,28 @@ pub mod ds {
     pub mod trie;
     pub mod csr;
     
-    // pub mod pointer_segtree;
-    
-    pub mod ordered;
-    pub mod sorted_set;
-    
     pub mod rolling_hash_deque;
-    
-    // pub mod light_splay_tree;
-    // pub mod super_splay_tree;
-    
-    // pub mod rangeset;
-    // pub mod multiset;
+}
+
+pub mod geo {
+    pub mod vector_i64;
 }
 
 
 pub mod graph {
     pub mod scc;
-    pub mod functional_graph;
     pub mod tree;
-    
-    // pub mod old_tree;
     pub mod centroid;
 }
 
+
+
 pub mod math {
-    pub mod sieve;
-    pub mod montgomery;
-    // pub mod barrett;
-    
+    pub mod lpf_sieve;
     pub mod func;
     pub mod quotient_list;
     pub mod modtable;
-    
-    pub mod vector_i64;
-    
     pub mod xor_convolution;
-    
-    // pub mod mod998;
-    // pub mod matrix; // todo
-    
-    // pub mod vector;
 }
 
 pub mod mod998 {

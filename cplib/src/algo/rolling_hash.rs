@@ -2,7 +2,7 @@
 //! 
 //! 法を `2^61 - 1` とし、基数として `37, 43` を採用した。
 
-use std::ops::{Add, Deref, Shl, Shr, Sub};
+use std::ops::{Add, Shl, Shr, Sub};
 
 
 
@@ -57,7 +57,6 @@ pub fn base_invpow(e: usize) -> [u128; 2] {
 /// 
 /// - `Add, Sub, Shl<usize>, Shr<usize>`
 /// - `Deref<Target = [u64; 2]>`
-/// - `FromIterator<u64>`
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub struct Hash(pub(crate) [u64; 2]);
 
@@ -81,9 +80,15 @@ impl Hash {
     /// - if not `v < MOD = 2^61 - 1`
     pub fn push_inv(self, v: u64) -> Hash { self-Hash::new(v) >> 1 }
     
-    pub fn concat(self, r: Self, rlen: usize) -> Self { (self << rlen) + r }
+    pub fn cat(self, r: Self, rlen: usize) -> Self { (self << rlen) + r }
     
     pub fn inner(&self) -> &[u64; 2] { &self.0 }
+    
+    pub fn prefix(iter: impl IntoIterator<Item = u64>) -> Vec<Hash> {
+        let (mut res, mut cur) = (vec![Hash::new(0)], Hash::new(0));
+        for x in iter.into_iter() { cur = cur.push(x); res.push(cur); }
+        res
+    }
 }
 
 
@@ -121,13 +126,40 @@ impl Shr<usize> for Hash {
     }
 }
 
-impl Deref for Hash {
-    type Target = [u64; 2];
-    fn deref(&self) -> &Self::Target { &self.0 }
+
+
+/// `&[Hash]` として `[..=lcp]` まで一致していることを表す。すなわち、平文として `[..lcp]` まで一致している。
+pub fn lcp(s: &[Hash], t: &[Hash]) -> usize {
+    let (mut ok, mut ng) = (0, s.len().min(t.len())+1);
+    while ng-ok > 1 {
+        let x = (ng+ok)/2;
+        if s[x] == t[x] { ok = x; } else { ng = x; }
+    }
+    ok
 }
 
-impl FromIterator<u64> for Hash {
-    fn from_iter<T: IntoIterator<Item = u64>>(iter: T) -> Self {
-        iter.into_iter().fold(Hash::new(0), |acc, v| acc.push(v))
+
+pub fn slice_cmp(s: &[Hash], t: &[Hash]) -> std::cmp::Ordering {
+    let lcp = lcp(s, t);
+    if s.len().min(t.len()) == lcp+1 {
+        s.len().cmp(&t.len())
+    } else {
+        (t[lcp+1]-s[lcp+1]).0[0].cmp(&(MOD as u64/2))
     }
+}
+
+fn concat_get(s: &[Hash], t: &[Hash], len: usize) -> Hash {
+    if s.len() < len { (s[s.len()] << len-s.len()) + t[len-s.len()] } else { s[len] }
+}
+
+pub fn concat_cmp(s: &[Hash], t: &[Hash]) -> std::cmp::Ordering {
+    // st.cmp(ts)
+    let (mut ng, mut ok) = (0, s.len()+t.len()-1);
+    while ok-ng > 1 {
+        let x = (ng+ok)/2;
+        let st = concat_get(s, t, x);
+        let ts = concat_get(t, s, x);
+        if st == ts { ok = x; } else { ng = x; }
+    }
+    if ok == s.len()+t.len()-1 { std::cmp::Ordering::Equal } else { (concat_get(t, s, ok+1) - concat_get(s, t, ok+1)).0[0].cmp(&(MOD as u64/2)) }
 }

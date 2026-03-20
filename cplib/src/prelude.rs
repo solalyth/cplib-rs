@@ -9,6 +9,6 @@ pub use crate::cplib::{
     SUBMISSION,
     ds::{unionfind::UnionFind, segtree::*, csr::CSR},
     algo::func::*,
-    math::modtable::O,
+    math::{modtable::O, lpf_sieve::*},
     util::{output::{out, end}, traits::*, debug::epr_table},
 };

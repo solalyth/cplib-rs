@@ -28,6 +28,23 @@ pub fn run_length<T: Eq>(iter: impl IntoIterator<Item = T>) -> Vec<(T, usize)> {
 }
 
 
+/// 隣接がマージ可能なら圧縮するやつ。`f(lhs, rhs)` について、マージ可能ならば `lhs` にマージさせて `true` を返し、不可能ならばそのまま `false` を返すこと。
+pub fn coalesce_inplace<T>(v: &mut Vec<T>, f: impl Fn(&mut T, &mut T) -> bool) {
+    let mut l = 0;
+    for r in 1..v.len() {
+        unsafe {
+            let [ref_l, ref_r] = v.get_disjoint_unchecked_mut([l, r]);
+            if !f(ref_l, ref_r) {
+                v.swap(l+1, r);
+                l += 1;
+            }
+        }
+    }
+    v.truncate(l+1);
+}
+
+
+
 /// `prefix[i] = fold(0..i)`
 /// 
 /// `suffix[i]` が欲しいときは `iter` を逆順にして渡したあと `reverse` を取ればよい。

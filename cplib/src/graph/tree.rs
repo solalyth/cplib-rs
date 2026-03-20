@@ -1,13 +1,13 @@
 #![allow(dead_code)]
 
-pub use crate::cplib::ds::csr::CSR;
+pub use crate::cplib::ds::csr::Edge;
 use crate::cplib::ds::segtree::{Segtree, SegtreeOp};
 use std::cell::UnsafeCell;
 
 const MASK: usize = (1<<32)-1;
 
 pub struct Tree<'a> {
-    edge: &'a CSR,
+    edge: &'a Edge,
     root: usize,
     par: Vec<usize>,
     depth: Vec<usize>, // depth[root] = 0
@@ -19,20 +19,23 @@ pub struct Tree<'a> {
 }
 
 impl<'a> Tree<'a> {
-    pub fn new(edge: &'a CSR, root: usize) -> Self {
-        let n = edge.len();
+    pub fn new(edge: &'a Edge, root: usize) -> Self {
+        let n = edge.idx_len();
         let mut par = vec![root; n];
         let mut euler = vec![0; n*2];
         let mut euler_inv = vec![];
         let mut lca = vec![];
         let mut depth = vec![0; n];
         let mut dfs = vec![root+n, root];
+        
+        assert!(edge.dat_len() == (n-1)*2);
+        
         while let Some(i) = dfs.pop() {
             euler[i] = euler_inv.len();
             euler_inv.push(i);
             if i < n {
                 lca.push((depth[i]+1<<32)+i);
-                for &j in edge[i].iter().rev() {
+                for &(j, _) in edge[i].iter().rev() {
                     if par[i] != j {
                         par[j] = i;
                         depth[j] = depth[i]+1;
@@ -48,7 +51,7 @@ impl<'a> Tree<'a> {
         Self { edge, root, par, depth, lca: UnsafeCell::new(Segtree::from_iter(lca)), euler, euler_inv }
     }
     
-    fn len(&self) -> usize { self.edge.len() }
+    fn len(&self) -> usize { self.edge.idx_len() }
     pub fn par(&self, i: usize) -> usize { self.par[i] }
     pub fn depth(&self, i: usize) -> usize { self.depth[i] }
     pub fn lca(&self, u: usize, v: usize) -> usize {
@@ -69,6 +72,8 @@ impl<'a> Tree<'a> {
     }
     /// ET-order を返す。`in: i, out: i+N`
     pub fn order(&self) -> &[usize] { &self.euler_inv }
+    /// `(max depth, idx)`
+    pub fn depth_max(&self) -> (usize, usize) { (0..self.edge.idx_len()).map(|i| (self.depth[i], i)).max().unwrap() }
 }
 
 
@@ -78,24 +83,4 @@ impl SegtreeOp for LCA {
     type Lazy = ();
     fn id_value() -> Self::Value { !0 }
     fn prod_value(lhs: &Self::Value, rhs: &Self::Value) -> Self::Value { *lhs.min(rhs) }
-}
-
-
-
-pub fn diameter(edge: &CSR) -> [usize; 2] {
-    let n = edge.len();
-    let (mut s, mut res, mut bfs) = (0, [0, 0], vec![]);
-    for t in 0..2 {
-        let mut seen = vec![false; n];
-        bfs.push(s); seen[s] = true;
-        for i in 0..n {
-            for &j in &edge[bfs[i]] {
-                if seen[j] == false {
-                    seen[j] = true; bfs.push(j);
-                }
-            }
-        }
-        s = bfs[n-1]; res[t] = s; bfs.clear();
-    }
-    res
 }

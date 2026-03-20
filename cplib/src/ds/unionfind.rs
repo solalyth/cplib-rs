@@ -25,7 +25,7 @@ impl Abelian for Nop {
 /// 
 /// # 参考
 /// 
-/// - https://37zigen.com/union-find
+/// - <https://37zigen.com/union-find>
 /// 
 /// # 搭載機能
 /// 
@@ -33,7 +33,7 @@ impl Abelian for Nop {
 /// 
 /// # 例題
 /// 
-/// - Potentialized Union Find: https://atcoder.jp/contests/abc328/tasks/abc328_f
+/// - Potentialized Union Find: <https://atcoder.jp/contests/abc328/tasks/abc328_f>
 pub struct UnionFind<Op: Abelian> {
     par: Vec<usize>,
     size: Vec<usize>,
@@ -71,13 +71,13 @@ impl<Op: Abelian> UnionFind<Op> {
     
     pub fn len(&self) -> usize { self.par.len() }
     
-    pub fn leader(&mut self, mut i: usize) -> usize {
+    pub fn leader(&mut self, i: usize) -> usize {
         loop {
             let p = self.par[i];
-            if self.par[p] == p { return p; }
+            let g = self.par[p];
+            if p == g { return g; }
             self.diff[i] = Op::add(&self.diff[i], &self.diff[p]);
-            self.par[i] = self.par[p];
-            i = self.par[p];
+            self.par[i] = g;
         }
     }
     

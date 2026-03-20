@@ -4,11 +4,7 @@ use std::fmt::Debug;
 
 const MASK: usize = (1<<32)-1;
 
-/// 文字種 `N` の Trie を持つ構造体。
-/// 
-/// # Memo
-/// 
-/// 辺の付け替えがしたいケースはある？良い感じに操作しないとループができて嫌そう。
+/// 文字種 `N` の Trie を管理する。
 pub struct Trie<const N: usize> {
     /// `dat[(N+1)*idx + c=0..N]`: 遷移先
     /// `dat[(N+1)*idx + N]`: (遷移c)<<32 + 遷移元
@@ -21,9 +17,6 @@ impl<const N: usize> Trie<N> {
     pub fn new() -> Self {
         Self { dat: vec![!0; (N+1)*1024], len: 1 }
     }
-    
-    /// 使用しているノード数を返す。
-    pub fn len(&self) -> usize { self.len }
     
     pub fn clear(&mut self) {
         self.dat[..(N+1)*self.len].fill(!0);
@@ -38,14 +31,15 @@ impl<const N: usize> Trie<N> {
         self.len-1
     }
     
-    /// 親ノード及び遷移 `c` を返す。
-    pub fn parent(&self, idx: usize) -> Option<(usize, usize)> {
-        if idx != 0 {
-            let t = self.dat[(N+1)*idx+N];
-            Some((t & MASK, t >> 32))
-        } else {
-            None
-        }
+    /// `next(par, c) == idx` となる `(par, c)` を返す。
+    /// 
+    /// # Panics
+    /// 
+    /// - if not `idx != 0 && idx < trie.len`
+    pub fn parent(&self, idx: usize) -> (usize, usize) {
+        assert!(idx != 0 && idx < self.len);
+        let t = self.dat[(N+1)*idx+N];
+        (t & MASK, t >> 32)
     }
     
     /// 遷移先が存在するなら返す。
@@ -74,7 +68,7 @@ impl<const N: usize> Trie<N> {
         self.dat[(N+1)*idx+c]
     }
     
-    /// 文字列 `iter` を挿入する。`res[i] = Node-idx of iter[..i]`
+    /// 文字列 `iter` に対応するインデックス列を返す。存在しないならば新しくノードを作る。`res[i] = Node-idx of iter[..i]`
     pub fn insert(&mut self, iter: impl IntoIterator<Item = usize>) -> Vec<usize> {
         let mut res = vec![0];
         let mut cur = 0;
@@ -124,17 +118,19 @@ impl<const N: usize> Debug for Trie<N> {
 pub struct AhoCorasick<'a, const N: usize> {
     trie: &'a Trie<N>,
     /// `dat[(N+1)*idx + c=0..N]`: 遷移先
-    /// `dat[(N+1)*idx + N]`: fail 先, ただし fail(0) = 0
+    /// `dat[(N+1)*idx + N]`: 失敗遷移先, ただし fail(0) = 0
     dat: Vec<usize>
 }
 
 impl<const N: usize> AhoCorasick<'_, N> {
+    /// `idx` に対応した文字列に文字 `c` を連結したものについて、(適切に fail を取るなどして) それに対応すべきノードを返す。
     pub fn next(&self, idx: usize, c: usize) -> usize {
         assert!(idx < self.trie.len && c < N);
         self.dat[(N+1)*idx+c]
     }
-    pub fn fail(&self, idx: usize) -> Option<usize> {
+    /// `fail(0) = 0` に注意せよ。
+    pub fn fail(&self, idx: usize) -> usize {
         assert!(idx < self.trie.len);
-        if idx == 0 { None } else { Some(self.dat[(N+1)*idx+N]) }
+        self.dat[(N+1)*idx+N]
     }
 }

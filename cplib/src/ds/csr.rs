@@ -1,88 +1,65 @@
 use std::ops::Index;
 
+
 #[derive(Debug)]
-pub struct CSR {
-    dat: Vec<usize>,
+pub struct CSR<T: Default> {
+    dat: Vec<T>,
     idx: Vec<usize>,
 }
 
-impl CSR {
-    pub fn new(len: usize, dat: &[(usize, usize)]) -> Self {
-        let mut idx = vec![0; len+1];
-        for &(i, _) in dat {
-            if i+2 <= len { idx[i+2] += 1; }
+pub type Edge = CSR<(usize, usize)>;
+
+impl Edge {
+    /// 無向辺なら `und = true` とすること。
+    pub fn from_edges(n: usize, und: bool, iter: impl IntoIterator<Item = (usize, usize)> + Clone) -> Self {
+        let mut idx = vec![0; n+2];
+        for (i, j) in iter.clone() {
+            idx[i+2] += 1;
+            if und { idx[j+2] += 1; }
         }
-        for i in 0..len { idx[i+1] += idx[i]; }
-        let mut res = vec![0; dat.len()];
-        for &(i, v) in dat { res[idx[i+1]] = v; idx[i+1] += 1; }
-        Self { dat: res, idx }
-    }
-    
-    pub fn new_undirected(len: usize, dat: &[(usize, usize)]) -> Self {
-        let mut edges = vec![];
-        for &(i, j) in dat {
-            edges.push((i, j));
-            edges.push((j, i));
+        for i in 0..=n { idx[i+1] += idx[i]; }
+        
+        let mut dat = vec![(0, 0); idx.pop().unwrap()];
+        for (k, (i, j)) in iter.into_iter().enumerate() {
+            dat[idx[i+1]] = (j, k); idx[i+1] += 1;
+            if und && i != j { dat[idx[j+1]] = (i, k); idx[j+1] += 1; }
         }
-        Self::new(len, &edges)
+        
+        Self { dat, idx }
     }
-    
-    pub fn from_iter(len: usize, iter: impl IntoIterator<Item = (usize, usize)>) -> Self {
-        let v = iter.into_iter().collect::<Vec<_>>();
-        Self::new(len, &v)
-    }
-    
-    pub fn from_iter_undirected(len: usize, iter: impl IntoIterator<Item = (usize, usize)>) -> Self {
-        let mut v = iter.into_iter().collect::<Vec<_>>();
-        for i in 0..v.len() { v.push((v[i].1, v[i].0)); }
-        Self::new(len, &v)
-    }
-    
-    pub fn len(&self) -> usize { self.idx.len()-1 }
     
     pub fn sort(&mut self) {
-        for i in 0..self.len() {
+        for i in 0..self.idx_len() {
             self.dat[self.idx[i]..self.idx[i+1]].sort_unstable();
         }
     }
     
-    /// sorted である必要がある。
     pub fn contains(&self, u: usize, v: usize) -> bool {
-        debug_assert!(self[u].is_sorted());
-        self[u].binary_search(&v).is_ok()
+        self[u].binary_search_by_key(&v, |e| e.0).is_ok()
     }
 }
 
-impl Index<usize> for CSR {
-    type Output = [usize];
+impl<T: Default> CSR<T> {
+    /// `[[]]` に相当する配列を作る。
+    pub fn new() -> Self {
+        Self { dat: vec![], idx: vec![0, 0] }
+    }
+    
+    pub fn idx_len(&self) -> usize { self.idx.len()-1 }
+    pub fn dat_len(&self) -> usize { self.dat.len() }
+    
+    pub fn push(&mut self, x: T) {
+        self.dat.push(x); *self.idx.last_mut().unwrap() += 1;
+    }
+    
+    pub fn next_vec(&mut self) {
+        self.idx.push(self.dat.len());
+    }
+}
+
+impl<T: Default> Index<usize> for CSR<T> {
+    type Output = [T];
     fn index(&self, i: usize) -> &Self::Output {
         &self.dat[self.idx[i]..self.idx[i+1]]
-    }
-}
-
-impl<'a> IntoIterator for &'a CSR {
-    type Item = (usize, usize);
-    type IntoIter = Iter<'a>;
-    fn into_iter(self) -> Self::IntoIter { Iter { src: self, cur: 0, i: 0 } }
-}
-
-
-
-pub struct Iter<'a> {
-    src: &'a CSR,
-    cur: usize,
-    i: usize
-}
-
-impl<'a> Iterator for Iter<'a> {
-    type Item = (usize, usize);
-    fn next(&mut self) -> Option<Self::Item> {
-        let mut res = None;
-        if self.cur < self.src.dat.len() {
-            while self.src.idx[self.i+1] == self.cur { self.i += 1; }
-            res = Some((self.i, self.src.dat[self.cur]));
-        }
-        self.cur += 1;
-        res
     }
 }

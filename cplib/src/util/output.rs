@@ -77,6 +77,13 @@ impl out {
             v.fmt(&mut BUFFER.buf);
         }
     }
+    
+    pub fn ln() {
+        unsafe {
+            BUFFER.buf.push('\n');
+            BUFFER.prev = Previous::LineHead;
+        }
+    }
 }
 
 impl out_usp {

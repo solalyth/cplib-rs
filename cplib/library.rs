@@ -5,13 +5,13 @@ mod external {
             input, input_interactive,
             marker::{Chars as chars, Usize1 as usize1}
         },
+        itertools::{Itertools, iproduct},
+        num_integer::{gcd, lcm, Roots},
         
         // atcoder only
-        itertools::{Itertools, iproduct},
-        superslice::Ext,
-        num_integer::{gcd, lcm, Roots},
-        // num_bigint::BigUint,
         ac_library,
+        // superslice::Ext,
+        // num_bigint::BigUint,
         // rand
     };
 }
@@ -63,7 +63,7 @@ mod cplib {
     
     pub mod math {
         import!("math/func");
-        import!("math/sieve");
+        import!("math/lpf_sieve");
         import!("math/modtable");
         
         // import!("math/xor_convolution");

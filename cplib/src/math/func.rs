@@ -54,14 +54,17 @@ pub fn modinv(x: usize, m: usize) -> Option<usize> {
 
 
 /// `x^n mod m` を計算する。`0^0 == 1` とする。
-pub fn mpow(mut x: u128, mut n: u128, m: u128) -> u128 {
+/// 
+/// `x^n = x^{phi(m) * [phi(m) <= n] + (n mod \phi(m))} (mod m)` が成り立つ。
+pub fn modpow(mut x: u128, mut n: u128, m: u128) -> u128 {
+    if m == 1 { return 0; }
+    if n == 0 { return 1; }
     x %= m;
-    if n == 0 { return if x == 0 {0} else {1}; }
     let mut res = 1;
     while n != 0 {
         if n&1 == 1 { res = res*x % m; }
         x = x*x % m;
-        n >>= 1;
+        n /= 2;
     }
     res
 }
@@ -69,45 +72,81 @@ pub fn mpow(mut x: u128, mut n: u128, m: u128) -> u128 {
 
 
 /// 和が `s` である、長さ `n` の非負整数列を辞書順に返す。`res.len() == (s+n-1)! / (s! * (n-1)!)`
-pub fn partitions(n: usize, s: usize) -> Option<Vec<Vec<usize>>> {
-    if n == 0 && s != 0 { return None; }
-    if s == 0 { return Some(vec![vec![0; n]]); }
+// pub fn partitions(n: usize, s: usize) -> Option<Vec<Vec<usize>>> {
+//     if n == 0 && s != 0 { return None; }
+//     if s == 0 { return Some(vec![vec![0; n]]); }
     
-    let mut cur = vec![0; n];
-    cur[n-1] = s;
-    let (mut res, mut t) = (vec![cur.clone()], n-1);
+//     let mut cur = vec![0; n];
+//     cur[n-1] = s;
+//     let (mut res, mut t) = (vec![cur.clone()], n-1);
     
-    while t != 0 {
-        cur[t-1] += 1;
-        cur[n-1] = std::mem::take(&mut cur[t])-1;
-        if cur[n-1] == 0 { t -= 1; } else { t = n-1; }
-        res.push(cur.clone());
-    }
+//     while t != 0 {
+//         cur[t-1] += 1;
+//         cur[n-1] = std::mem::take(&mut cur[t])-1;
+//         if cur[n-1] == 0 { t -= 1; } else { t = n-1; }
+//         res.push(cur.clone());
+//     }
     
-    Some(res)
-}
+//     Some(res)
+// }
 
 
 
 
-pub fn into_ary(mut n: usize, base: usize) -> Vec<usize> {
+pub fn into_ary(mut n: u64, base: u64) -> Vec<u64> {
     let mut res = vec![];
-    while n != 0 {
-        res.push(n%base); n /= base;
-    }
+    while n != 0 { res.push(n%base); n /= base; }
     res
 }
 
-pub fn from_ary(d: &[usize], base: usize) -> usize {
+pub fn from_ary(d: &[u64], base: u64) -> u64 {
     let mut res = 0;
     for &d in d { res = res*base + d; }
     res
 }
 
-pub fn digit_ary(mut n: usize, base: usize) -> Option<usize> {
-    assert!(2 <= base);
-    if n == 0 { return None; }
-    let mut cnt = 0;
-    while n != 0 { n /= base; cnt += 1; }
-    Some(cnt)
+// pub fn digit_ary(mut n: usize, base: usize) -> usize {
+//     assert!(2 <= base);
+//     let mut cnt = 0;
+//     while n != 0 { n /= base; cnt += 1; }
+//     cnt
+// }
+
+
+
+/// 既約分数 `(x, y) == x/y` あるいは無限大 `(1, 0) == infty` を返す。ただし `x >= 0` を満たす。
+/// 
+/// # Panics
+/// 
+/// - if `(p, q) == (0, 0)`
+pub fn rational(mut p: i128, mut q: i128) -> (i128, i128) {
+    assert!((p, q) != (0, 0));
+    if q != 0 {
+        if q < 0 { (p, q) = (-p, -q); }
+        let g = gcd(p.abs() as usize, q.abs() as usize) as i128;
+        (p/g, q/g)
+    } else {
+        (1, 0)
+    }
+}
+
+/// 傾き `p/q` の uv 直交座標系に変換する。`[qx+py, -px+qy]` を返す。必要ならば事前に [`rational`] を取ること。
+pub fn into_uv([x, y]: [i128; 2], p: i128, q: i128) -> [i128; 2] {
+    [q*x+p*y, q*y-p*x]
+}
+
+
+
+/// `(p, exp)` の列を受け取って、約数を返す。昇順かは保証されていない。
+/// 
+/// 約数の個数は `N^(1/3)` 個程度である。(ref. [競プロにおける約数の個数の見積もり - noshi91](https://noshi91.hatenablog.com/entry/2022/07/05/021040))
+pub fn divisors(pe: &[(usize, usize)]) -> Vec<usize> {
+    let mut res = vec![1];
+    for &(p, e) in pe.into_iter() {
+        for i in 0..res.len() {
+            let mut k = res[i];
+            for _ in 0..e { k *= p; res.push(k); }
+        }
+    }
+    res
 }

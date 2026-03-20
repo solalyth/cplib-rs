@@ -105,7 +105,7 @@ impl Ord for HashSlice<'_> {
         if self.len() == lcp || other.len() == lcp {
             self.len().cmp(&other.len())
         } else {
-            (other.prefix(lcp+1)-self.prefix(lcp+1))[0].cmp(&(MOD as u64/2))
+            (other.prefix(lcp+1)-self.prefix(lcp+1)).0[0].cmp(&(MOD as u64/2))
         }
     }
 }
