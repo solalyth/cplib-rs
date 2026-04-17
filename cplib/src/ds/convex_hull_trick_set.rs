@@ -31,16 +31,16 @@ struct I64(i64);
 
 
 
-/// 最大値を取る区間の区切れを返す。すなわち、`x < sep` ならば左が最大で、`sep <= x` ならば右が最大である。
-pub fn sep_line(l: (i64, i64), r: (i64, i64)) -> i64 {
+/// 最大値を取る区間の区切れを返す。すなわち、`x in [-inf, sep)` ならば左が最大で、`[sep, inf)` ならば右が最大である。
+fn sep(l: (i64, i64), r: (i64, i64)) -> i64 {
     debug_assert!(l.0 < r.0);
     (l.1 - r.1).div_euclid(r.0 - l.0)
 }
 
 
 
-/// 直線集合 `ax+b` に対して、任意の `x` における最大値を求めることができる。<br>
-/// 直線 `(a, b)` やクエリ `x` について `-4e9 <= a, b, x <= 4e9` であることを要請する。
+/// 一次関数の集合に対して、点 `x` における最大値を求めることができる。<br>
+/// 一次関数 `(a, b)` やクエリ `x` について `-4e9 <= a, b, x <= 4e9` であることを要請する。
 /// 
 /// - 直線追加: amortized `O(log N)` (たぶん)
 /// - max 回答クエリ: `O(log N)`
@@ -68,28 +68,28 @@ impl ConvexHullTrick {
         
         for &lnx in self.set.range(..=a).rev() {
             if let Some(l) = &mut l {
-                if lnx.r.0 < sep_line(l.ab(), (a, b)) { break; }
+                if lnx.r.0 < sep(l.ab(), (a, b)) { break; }
                 del.push(lnx.a);
                 *l = lnx;
             } else if lnx.a == a {
                 if b <= lnx.b { return; }
                 del.push(lnx.a);
             } else {
-                if lnx.r.0 < sep_line(lnx.ab(), (a, b)) { return; }
+                if lnx.r.0 < sep(lnx.ab(), (a, b)) { return; }
                 del.push(lnx.a);
                 l = Some(lnx);
             }
         }
         
         for rnx in self.set.range(a+1..) {
-            if sep_line((a, b), rnx.ab()) < rnx.r.0 { qr = sep_line((a, b), rnx.ab()); break; }
+            if sep((a, b), rnx.ab()) < rnx.r.0 { qr = sep((a, b), rnx.ab()); break; }
             del.push(rnx.a);
         }
         
         for a in del { self.set.remove(&a); }
         
         if let Some(mut l) = l {
-            l.r.0 = sep_line(l.ab(), (a, b));
+            l.r.0 = sep(l.ab(), (a, b));
             self.set.insert(l);
         }
         

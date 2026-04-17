@@ -1,6 +1,6 @@
 //! 遅延可能 Beats! 可能セグメント木
 
-use std::{fmt::Debug, mem::replace, ops::{Index, IndexMut, RangeBounds}, slice::SliceIndex};
+use std::{fmt::Debug, mem::replace, ops::{Index, RangeBounds}, slice::SliceIndex};
 use crate::cplib::util::func::to_bounds;
 
 /// Operator for [`Segtree`], [`crate::ds::sparse_segtree::SparseSegtree`]
@@ -26,7 +26,13 @@ pub trait SegtreeOp: Sized {
     fn prod_lazy(lazy: &mut Self::Lazy, ad: &Self::Lazy) {}
     
     fn segtree_new(len: usize) -> Segtree<Self> { Segtree::new(len) }
-    fn segtree_from_iter(iter: impl IntoIterator<Item = Self::Value>) -> Segtree<Self> { Segtree::from_iter(iter) }
+    fn segtree_from_iter(iter: impl ExactSizeIterator<Item = Self::Value>) -> Segtree<Self> {
+        let mut seg = Segtree::new(iter.len());
+        let len = seg.len();
+        for (i, v) in iter.enumerate() { seg.tree[len+i] = v; }
+        for i in (1..len).rev() { seg.update(i); }
+        seg
+    }
 }
 
 
@@ -187,7 +193,8 @@ impl<Op: SegtreeOp> Segtree<Op> {
                 self.update(i);
             }
         } else {
-            Op::act_value(&mut self.tree[i], lazy);
+            let res = Op::act_value(&mut self.tree[i], lazy);
+            debug_assert!(res, "you forgot SegTreeOp::BEATS");
             self.comp_lazy(i, lazy);
         }
     }
@@ -232,19 +239,8 @@ impl<Op: SegtreeOp> Clone for Segtree<Op> {
 impl<Op: SegtreeOp> Debug for Segtree<Op> where Op::Value: Debug {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut seg = self.clone();
-        for i in 1..seg.len() { seg.push(i); }
+        seg.push_all();
         write!(f, "{:?}", &seg.tree[self.len()..])
-    }
-}
-
-impl<Op: SegtreeOp> FromIterator<Op::Value> for Segtree<Op> {
-    fn from_iter<T: IntoIterator<Item = Op::Value>>(iter: T) -> Self {
-        let v = iter.into_iter().collect::<Vec<_>>();
-        let mut seg = Self::new(v.len());
-        let len = seg.len();
-        for (i, v) in v.into_iter().enumerate() { seg.tree[len+i] = v; }
-        for i in (1..seg.len()).rev() { seg.update(i); }
-        seg
     }
 }
 
@@ -254,12 +250,5 @@ impl<Op: SegtreeOp, I: SliceIndex<[Op::Value]>> Index<I> for Segtree<Op> {
     type Output = I::Output;
     fn index(&self, index: I) -> &Self::Output {
         Index::index(&self.tree[self.len()..], index)
-    }
-}
-
-impl<Op: SegtreeOp, I: SliceIndex<[Op::Value]>> IndexMut<I> for Segtree<Op> {
-    fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        let len = self.len();
-        IndexMut::index_mut(&mut self.tree[len..], index)
     }
 }

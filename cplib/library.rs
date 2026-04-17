@@ -6,13 +6,13 @@ mod external {
             marker::{Chars as chars, Usize1 as usize1}
         },
         itertools::{Itertools, iproduct},
-        num_integer::{gcd, lcm, Roots},
+        num::integer::{gcd, lcm, Roots},
         
         // atcoder only
-        ac_library,
+        // ac_library,
         // superslice::Ext,
+        // rand,
         // num_bigint::BigUint,
-        // rand
     };
 }
 
@@ -28,9 +28,12 @@ mod cplib {
         import!("ds/segtree");
         import!("ds/csr");
         
+        // import!("ds/persistent_segtree");
         
-        // import!("ds/sorted_set");
+        
         // import!("ds/trie");
+        // import!("ds/binary_trie");
+        // import!("ds/sorted_set");
         // import!("ds/foldable_deque");
         // import!("ds/splay_tree");
         // import!("ds/sparse_segtree");
@@ -66,6 +69,8 @@ mod cplib {
         import!("math/lpf_sieve");
         import!("math/modtable");
         
+        // import!("math/quotient_list");
+        
         // import!("math/xor_convolution");
         // import!("math/vector_i64");
         // import!("math/montgomery");
@@ -76,14 +81,22 @@ mod cplib {
         // import!("mod998/fps");
     }
     
+    pub mod traits {
+        import!("traits/grid");
+        import!("traits/char_util");
+        import!("traits/iter_util");
+        import!("traits/map_init");
+        import!("traits/vec_split");
+    }
+    
     pub mod util {
         import!("util/output");
-        import!("util/traits");
         import!("util/macros");
         import!("util/func");
         import!("util/debug");
         // import!("util/global");
         
+        // import!("util/input");
         
         // import!("util/time");
     }

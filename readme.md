@@ -5,10 +5,11 @@
 
 # サイトごとの環境メモ
 
-- AtCoder ... 1.89.0 + proconio + いろいろ
+- AtCoder ... 1.89.0 (edition 2024) + proconio + itertools + いろいろ
   - 参考: [使用できる言語とライブラリの一覧 (2025-10)](https://img.atcoder.jp/file/language-update/2025-10/language-list.html)
-- yukicoder ... 1.92.0 + proconio + num
-- Codeforces ... 1.89.0
+- yukicoder ... 1.94.0 (edition 2024) + proconio + itertools + num
+  - 参考: https://yukicoder.me/help/environments
+- Codeforces ... 1.89.0 (edition 2024)
   - 参考: https://codeforces.com/blog/entry/121114
-- Library Checker ... 1.71.1
+- Library Checker ... 1.71.1 (edition 2021)
   - 参考: https://judge.yosupo.jp/help

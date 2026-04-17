@@ -1,4 +1,4 @@
-use std::ops::Index;
+use std::ops::{Index, IndexMut};
 
 
 #[derive(Debug)]
@@ -7,6 +7,7 @@ pub struct CSR<T: Default> {
     idx: Vec<usize>,
 }
 
+/// `(j, idx) in csr[i]` means `idx: i -> j`
 pub type Edge = CSR<(usize, usize)>;
 
 impl Edge {
@@ -40,9 +41,9 @@ impl Edge {
 }
 
 impl<T: Default> CSR<T> {
-    /// `[[]]` に相当する配列を作る。
+    /// `[]` に相当する配列を作る。
     pub fn new() -> Self {
-        Self { dat: vec![], idx: vec![0, 0] }
+        Self { dat: vec![], idx: vec![0] }
     }
     
     pub fn idx_len(&self) -> usize { self.idx.len()-1 }
@@ -61,5 +62,11 @@ impl<T: Default> Index<usize> for CSR<T> {
     type Output = [T];
     fn index(&self, i: usize) -> &Self::Output {
         &self.dat[self.idx[i]..self.idx[i+1]]
+    }
+}
+
+impl<T: Default> IndexMut<usize> for CSR<T> {
+    fn index_mut(&mut self, i: usize) -> &mut Self::Output {
+        &mut self.dat[self.idx[i]..self.idx[i+1]]
     }
 }

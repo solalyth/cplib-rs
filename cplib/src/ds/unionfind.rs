@@ -9,12 +9,12 @@ pub trait Abelian {
     fn sub(l: &Self::T, r: &Self::T) -> Self::T { Self::add(l, &Self::inv(r)) }
 }
 
-pub struct Nop;
-impl Abelian for Nop {
-    type T = ();
-    fn e() {}
-    fn add(_: &(), _: &()) {}
-    fn inv(_: &()) {}
+pub struct Xor;
+impl Abelian for Xor {
+    type T = bool;
+    fn e() -> bool { false }
+    fn add(l: &bool, r: &bool) -> bool { l^r }
+    fn inv(x: &bool) -> bool { *x }
 }
 
 
@@ -43,8 +43,8 @@ pub struct UnionFind<Op: Abelian> {
 
 
 
-impl UnionFind<Nop> {
-    pub fn new_nop(len: usize) -> Self { Self::new(len) }
+impl UnionFind<Xor> {
+    pub fn new_xor(len: usize) -> Self { Self::new(len) }
 }
 
 impl<Op: Abelian> UnionFind<Op> {

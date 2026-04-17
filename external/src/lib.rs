@@ -8,8 +8,8 @@ pub use {
     
     // atcoder only
     superslice::Ext,
-    num_integer::{gcd, lcm, Roots},
-    num_bigint::BigUint,
+    num::integer::{gcd, lcm, Roots},
+    num::Rational64,
     ac_library,
     rand
 };

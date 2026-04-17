@@ -9,7 +9,7 @@
 //! - `algo/rolling_hash`
 //! - `util/func`
 
-use crate::cplib::{algo::rolling_hash::{Hash, MOD}, util::func::to_bounds};
+use crate::cplib::{algo::rolling_hash::{Hash, P}, util::func::to_bounds};
 
 use std::{collections::VecDeque, ops::RangeBounds, cmp::Ordering};
 
@@ -28,7 +28,7 @@ impl HashDeque {
     /// 
     /// - if not `v < MOD = 2^61 - 1`
     pub fn push_front(&mut self, v: u64) {
-        self.0.push_front(self.0.front().unwrap().push_inv(v));
+        self.0.push_front(self.0.front().unwrap().pop(v));
     }
     
     /// # Panics
@@ -105,7 +105,7 @@ impl Ord for HashSlice<'_> {
         if self.len() == lcp || other.len() == lcp {
             self.len().cmp(&other.len())
         } else {
-            (other.prefix(lcp+1)-self.prefix(lcp+1)).0[0].cmp(&(MOD as u64/2))
+            (other.prefix(lcp+1)-self.prefix(lcp+1)).0[0].cmp(&(P as u64/2))
         }
     }
 }

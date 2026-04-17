@@ -13,6 +13,7 @@
 			"scminput": false,
 			"rust": false,
 			"csharp": true,
+			"javascript": true,
 			"snippets": true
 		},
 		"terminal.integrated.suggest.enabled": false

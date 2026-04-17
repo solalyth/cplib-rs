@@ -21,7 +21,6 @@ pub trait SplayOp {
 }
 
 
-/// 
 pub struct SplayTree<Op: SplayOp>(Cell<Option<NodeRef<Op>>>);
 
 impl<Op: SplayOp> SplayTree<Op> {
