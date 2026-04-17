@@ -1,25 +1,21 @@
 pub use crate::cplib::math::func::divisors;
 use std::ops::{Add, Sub};
 
-const MASK_29BIT: usize = (1<<29)-1;
+const MASK: usize = (1<<16)-1;
 
 /// Least Prime Factor (lpf) を線形オーダーで計算する。
-/// 
-/// # Memo
-/// 
-/// 素因数分解における素数の種類数は `max < 9.7e6` くらいの範囲で高々 7 種である。
 /// 
 /// # References
 /// 
 /// - [線形篩で遊ぼう - rsk0315](https://rsk0315.hatenablog.com/entry/2024/08/25/194341)
 pub struct LpfSieve {
     primes: Vec<usize>,
-    /// `table[i]` = (`exp` as 6bit, `lpf` as 29bit, `i/(lpf^exp)` as 29bit)
+    /// `table[n]` = (`n/p^e: u32`, `e: u16`, `p: u16`)
     table: Vec<usize>,
 }
 
 impl LpfSieve {
-    /// 初期化する。`max = 2^23, 10^7` くらいまで可能。
+    /// `max = 2^32` くらいまで可能。
     pub fn new(mut max: usize) -> Self {
         assert!(max <= 1e7 as usize);
         
@@ -28,13 +24,34 @@ impl LpfSieve {
         let mut table = vec![0; max+1];
         
         for i in 2..=max {
-            if table[i] == 0 { primes.push(i); table[i] = (1 << 58) + (i << 29) + 1; }
-            let lpf_i = (table[i] >> 29) & MASK_29BIT;
+            let lpf = if table[i] == 0 {
+                primes.push(i);
+                // (1, 1, 0)
+                table[i] = (1<<32) + (1<<16);
+                i
+            } else {
+                table[i] & MASK
+            };
             for &p in &primes {
-                if !(p <= lpf_i && i*p <= max) { break; }
-                table[p*i] = if p == lpf_i { table[i] + (1 << 58) } else { (1 << 58) + (p << 29) + i };
+                if !(p <= lpf && i*p <= max) { break; }
+                // lpf(i) == p => (table[i], table[i]+1, p)
+                // lpf(i) != p => (i, 1, p)
+                table[i*p] = if lpf == p { table[i] + (1<<16) | p } else { (i<<32) + (1<<16) + p };
             }
         }
+        
+        // for n in 2..=max {
+        //     let (p, e, nx) = if table[n] & MASK == 0 {
+        //         (n, 1, 1)
+        //     } else {
+        //         (table[n] & MASK, table[n]>>16 & MASK, table[n]>>32)
+        //     };
+            
+        //     crate::epr!("{n} -> p={p}, e={e}, nx={nx}");
+        // }
+        
+        // crate::epr!("next = {:?}", (0..=max).map(|i| table[i]>>32 & MASK).collect::<Vec<_>>());
+        // crate::epr!("lpf = {:?}", (0..=max).map(|i| table[i] & MASK).collect::<Vec<_>>());
         
         Self { primes, table }
     }
@@ -43,17 +60,26 @@ impl LpfSieve {
     
     pub fn primes(&self) -> &[usize] { &self.primes }
     
-    pub fn is_prime(&self, n: usize) -> bool { (self.table[n] >> 29) & MASK_29BIT == n }
+    pub fn is_prime(&self, n: usize) -> bool { 2 <= n && self.table[n] & MASK == 0 }
     
+    pub fn lpf(&self, n: usize) -> usize {
+        assert!(2 <= n);
+        let t = self.table[n] & MASK;
+        if t == 0 { n } else { t }
+    }
     
-    /// `(lpf, exp, n/(lpf^exp))` を返す。
+    /// `(p, e, n/p^e)` を返す。
     /// 
     /// # Panics
     /// 
     /// - if not `n in [2, max]`
     fn data(&self, n: usize) -> (usize, usize, usize) {
         debug_assert!(2 <= n);
-        ((self.table[n] >> 29) & MASK_29BIT, self.table[n] >> 58, self.table[n] & MASK_29BIT)
+        if self.table[n] & MASK == 0 {
+            (n, 1, 1)
+        } else {
+            (self.table[n] & MASK, self.table[n]>>16 & MASK, self.table[n]>>32)
+        }
     }
     
     /// `n` による `(p, exp)` の列について `|res| f(&mut res, p, exp)` で fold した値を返す。
@@ -61,11 +87,11 @@ impl LpfSieve {
     /// # Panics
     /// 
     /// - if not `n in [1, max]`
-    pub fn fold<T>(&self, mut n: usize, mut init: T, mut f: impl FnMut(&mut T, usize, usize)) -> T {
+    pub fn fold<T>(&self, mut n: usize, mut init: T, mut vpe: impl FnMut(&mut T, usize, usize)) -> T {
         assert!(n != 0);
         while n != 1 {
             let (lpf, exp, nx) = self.data(n);
-            f(&mut init, lpf, exp);
+            vpe(&mut init, lpf, exp);
             n = nx;
         }
         init
@@ -78,7 +104,7 @@ impl LpfSieve {
     /// # Panics
     /// 
     /// - if not `n in [1, max^2]`
-    pub fn factorize(&self, mut n: usize) -> Vec<(usize, usize)> {
+    pub fn fact(&self, mut n: usize) -> Vec<(usize, usize)> {
         assert!(1 <= n && n <= self.max().pow(2));
         if n <= self.max() {
             self.fold(n, vec![], |v, p, e| { v.push((p, e)); })
@@ -96,25 +122,25 @@ impl LpfSieve {
     }
     
     
-    // /// Euler's totient function `φ(n)` を計算する。
-    // /// 
-    // /// # Panics
-    // /// 
-    // /// - if not `n in [1, self.max]`
-    // pub fn totient_point(&self, n: usize) -> usize {
-    //     self.fold(n, n, |v, p, _e| { *v -= *v/p; })
-    // }
+    /// Euler's totient function `φ(n)` を計算する。
+    /// 
+    /// # Panics
+    /// 
+    /// - if not `n in [1, self.max]`
+    pub fn totient_point(&self, n: usize) -> usize {
+        self.fold(n, n, |v, p, _| { *v -= *v/p; })
+    }
     
-    // /// Euler's totient function `φ(i)` の `..=n` までのテーブルを計算する。ただし `res[0] == 0` となっている。
-    // pub fn totient(&self, n: usize) -> Vec<usize> {
-    //     let mut res = vec![0; n+1];
-    //     res[1] = 1;
-    //     for i in 2..=n {
-    //         let (lpf, exp, _nx) = self.data(i);
-    //         res[i] = res[i/lpf] * if exp == 1 { lpf-1 } else { lpf };
-    //     }
-    //     res
-    // }
+    /// Euler's totient function `φ(i)` の `..=n` までのテーブルを計算する。ただし `res[0] == 0` となっている。
+    pub fn totient(&self, n: usize) -> Vec<usize> {
+        let mut res = vec![0; n+1];
+        res[1] = 1;
+        for i in 2..=n {
+            let (lpf, exp, _nx) = self.data(i);
+            res[i] = res[i/lpf] * if exp == 1 { lpf-1 } else { lpf };
+        }
+        res
+    }
     
     
     
@@ -122,7 +148,7 @@ impl LpfSieve {
     /// 
     /// メビウスの反転公式: `F(n) = \sum_{d|n} f(n)` であるとき、`f(n) = \sum_{d|n} F(d) μ(n/d)` が成立する。
     pub fn mobius_point(&self, n: usize) -> i64 {
-        self.fold(n, 1, |v, _p, e| {
+        self.fold(n, 1, |v, _, e| {
             *v = if e == 1 { -*v } else { 0 };
         })
     }
@@ -132,7 +158,7 @@ impl LpfSieve {
         let mut res = vec![0; n+1];
         res[1] = 1;
         for i in 2..=n {
-            let (_lpf, exp, nx) = self.data(i);
+            let (_, exp, nx) = self.data(i);
             if exp == 1 { res[i] = -res[nx]; }
         }
         res
@@ -161,15 +187,6 @@ impl LpfSieve {
         g
     }
     
-    // pub fn div_mobius_point<T: Default + Copy + Add<Output = T> + Sub<Output = T>>(&self, g: &[T], idx: usize) -> T {
-    //     let mut res = T::default();
-    //     for i in self.fold(idx, vec![1i32], |v, p, _| { for i in 0..v.len() { v.push(-v[i] * p as i32); } }) {
-    //         // f(idx) = sum_{idx%i = 0} μ(i) g(idx/i)
-    //         if 0 <= i { res = res + g[idx/i as usize]; } else { res = res - g[idx/-i as usize]; }
-    //     }
-    //     res
-    // }
-    
     /// 倍数についての和 `g(n) = sum_{i%n = 0} f(i)` を計算する。`O(NloglogN)`
     /// 
     /// gcd 畳み込みについて `zf[i] * zg[i] = z(gcd_convolution(f, g))[i]` が成立する。
@@ -191,14 +208,4 @@ impl LpfSieve {
         }
         g
     }
-    
-    // pub fn mul_mobius_point<T: Default + Copy + Add<Output = T> + Sub<Output = T>>(&self, g: &[T], idx: usize) -> T {
-    //     let mut res = T::default();
-    //     let gl = g.len() - 1;
-    //     let t = self.mobius(gl/idx);
-    //     for (i, m) in t.into_iter().enumerate() {
-    //         if m == 1 { res = res + g[i*idx]; } else if m == -1 { res = res - g[i*idx]; }
-    //     }
-    //     res
-    // }
 }
