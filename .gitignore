@@ -3,6 +3,8 @@
 
 /src/
 /target/
+/in
+/library.rs
 
 Cargo.lock
 cp.code-workspace

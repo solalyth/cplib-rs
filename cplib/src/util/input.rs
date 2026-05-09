@@ -25,6 +25,17 @@ impl Scan {
         ITER.set_global(iter);
     }
     
+    pub fn read_eof() {
+        use std::io::*;
+        let s = Box::leak(read_to_string(stdin()).unwrap().into_boxed_str());
+        let iter = s.split_whitespace();
+        ITER.set_global(iter);
+    }
+    
+    pub fn read() {
+        if crate::SUBMISSION { Self::read_eof(); } else { Self::read_line(); }
+    }
+    
     pub fn usize() -> usize { next() }
     pub fn u64() -> u64 { next() }
     pub fn i64() -> i64 { next() }

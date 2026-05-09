@@ -61,13 +61,13 @@ impl<Op: Abelian> UnionFind<Op> {
         }
     }
     
-    pub fn extend(&mut self, len: usize) {
-        let bef = self.len();
-        self.par.extend(bef..len);
-        self.size.resize(len, 1);
-        self.diff.resize(len, Op::e());
-        self.next.extend(bef..len);
-    }
+    // pub fn extend(&mut self, len: usize) {
+    //     let bef = self.len();
+    //     self.par.extend(bef..len);
+    //     self.size.resize(len, 1);
+    //     self.diff.resize(len, Op::e());
+    //     self.next.extend(bef..len);
+    // }
     
     pub fn len(&self) -> usize { self.par.len() }
     

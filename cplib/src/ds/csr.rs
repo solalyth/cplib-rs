@@ -1,7 +1,7 @@
-use std::ops::{Index, IndexMut};
+use std::{fmt::Debug, ops::{Index, IndexMut}};
 
 
-#[derive(Debug)]
+#[derive(Clone)]
 pub struct CSR<T: Default> {
     dat: Vec<T>,
     idx: Vec<usize>,
@@ -68,5 +68,17 @@ impl<T: Default> Index<usize> for CSR<T> {
 impl<T: Default> IndexMut<usize> for CSR<T> {
     fn index_mut(&mut self, i: usize) -> &mut Self::Output {
         &mut self.dat[self.idx[i]..self.idx[i+1]]
+    }
+}
+
+impl Debug for Edge {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut v = vec![];
+        for i in 0..self.idx_len() {
+            for &(j, k) in &self[i] {
+               v.push((i, j, k));
+            }
+        }
+        write!(f, "{v:?}")
     }
 }

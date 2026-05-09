@@ -30,7 +30,7 @@ pub trait PersistentSegtreeOp: Sized {
 type Node<Op> = (<Op as PersistentSegtreeOp>::Value, Option<<Op as PersistentSegtreeOp>::Lazy>, [usize; 2]);
 
 pub struct PersistentSegtree<Op: PersistentSegtreeOp> {
-    pub pool: Vec<Node<Op>>,
+    pool: Vec<Node<Op>>,
     depth: usize
 }
 
@@ -40,18 +40,18 @@ impl<Op: PersistentSegtreeOp> PersistentSegtree<Op> {
         PersistentSegtree { pool: vec![], depth }
     }
     
+    pub fn inner(&self) -> &Vec<Node<Op>> { &self.pool }
     pub fn len(&self) -> usize { 1 << self.depth-1 }
     
     /// `lazy[idx]` を子に伝搬させる。
     pub fn push(&mut self, idx: usize) {
-        if let Some(lazy) = &self.pool[idx].1 {
-            let lazy = lazy.clone();
+        if let Some(lazy) = self.pool[idx].1.take() {
             for i in 0..2 {
-                let mut node = self.pool[self.pool[idx].2[i]].clone();
-                Op::act_value(&mut node.0, &lazy);
-                if let Some(l) = &mut node.1 { Op::prod_lazy(l, &lazy); } else { node.1 = Some(lazy.clone()); }
+                let mut t = self.pool[self.pool[idx].2[i]].clone();
+                Op::act_value(&mut t.0, &lazy);
+                if let Some(l) = &mut t.1 { Op::prod_lazy(l, &lazy); } else { t.1 = Some(lazy.clone()); }
                 self.pool[idx].2[i] = self.pool.len();
-                self.pool.push(node);
+                self.pool.push(t);
             }
         }
     }
@@ -121,11 +121,34 @@ impl<Op: PersistentSegtreeOp> PersistentSegtree<Op> {
         self._fold(root, l, r, self.depth-1)
     }
     
-    // pub fn _apply(&mut self, p: usize, l: usize, r: usize, d: usize, lazy: &Op::Lazy) {
-        
-    // }
+    fn _apply(&mut self, p: usize, l: usize, r: usize, d: usize, lazy: &Op::Lazy) -> usize {
+        if (l, r) == (0, 1<<d) {
+            let mut t = self.pool[p].clone();
+            Op::act_value(&mut t.0, lazy);
+            if let Some(l) = &mut t.1 { Op::prod_lazy(l, lazy); } else { t.1 = Some(lazy.clone()); }
+            self.pool.push(t);
+            self.pool.len()-1
+        } else {
+            self.push(p);
+            let mut t = self.pool[p].clone();
+            let [cl, cr] = self.pool[p].2;
+            let m = 1<<d-1;
+            if l < m {
+                t.2[0] = self._apply(cl, l, r.min(m), d-1, lazy);
+            }
+            if m < r {
+                t.2[1] = self._apply(cr, l.max(m)-m, r-m, d-1, lazy);
+            }
+            let rt = self.pool.len();
+            self.pool.push(t);
+            self.update(rt);
+            rt
+        }
+    }
     
-    // pub fn apply(&mut self, root: usize, range: impl RangeBounds<usize>, lazy: Op::Lazy) -> usize {
-        
-    // }
+    pub fn apply(&mut self, root: usize, range: impl RangeBounds<usize>, lazy: Op::Lazy) -> usize {
+        let [l, r] = to_bounds(range, self.len());
+        if r == 0 { return root; }
+        self._apply(root, l, r, self.depth-1, &lazy)
+    }
 }

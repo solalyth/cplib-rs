@@ -21,3 +21,21 @@ impl<T: Debug> Debug for Global<T> {
 }
 
 unsafe impl<T> Sync for Global<T> {}
+
+
+
+pub trait GlobalUtil: Sized {
+    fn into_global() -> Global<Self> { Global::new() }
+}
+
+impl<T> GlobalUtil for T {}
+
+
+#[macro_export]
+macro_rules! gl {
+    ($var:ident: $t:ty = $val:expr) => {
+        // use crate::cplib::util::global::Global;
+        static $var: Global<$t> = Global::new();
+        $var.set_global($val);
+    };
+}

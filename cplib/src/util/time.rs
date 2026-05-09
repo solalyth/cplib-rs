@@ -3,8 +3,13 @@ use std::time::Instant;
 
 pub(crate) static TIME: OnceLock<Instant> = OnceLock::new();
 
-pub fn init() {
+pub fn timer_init() {
     TIME.set(Instant::now()).unwrap();
+}
+
+pub fn current_time() -> u128 {
+    let ins = TIME.get().unwrap();
+    ins.elapsed().as_millis()
 }
 
 pub fn wait(t: u128) {

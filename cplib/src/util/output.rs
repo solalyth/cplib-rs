@@ -21,17 +21,15 @@ impl Buffer {
     fn print(&mut self) {
         if replace(&mut self.prev, Previous::LineHead) == Previous::LineHead { self.buf.pop(); }
         if crate::cplib::SUBMISSION {
-            println!("{}", self.buf);
+            if !self.buf.is_empty() {
+                println!("{}", self.buf);
+            }
         } else {
             eprint!("\x1b[32m");
             if self.buf.is_empty() {
                 eprintln!("(empty)");
-                // eprintln!(">> (empty)");
             } else {
-                for s in self.buf.split('\n') {
-                    // eprint(">> ");
-                    println!("{s}");
-                }
+                println!("{}", self.buf);
             }
             eprint!("\x1b[0m");
         }

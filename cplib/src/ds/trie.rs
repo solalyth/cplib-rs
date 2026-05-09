@@ -16,6 +16,7 @@ impl<const W: usize> Trie<W> {
         Self { dat: vec![!0; W+1] }
     }
     
+    /// ノード数を返す。
     pub fn len(&self) -> usize { self.dat.len() / (W+1) }
     
     pub fn clear(&mut self) { self.dat.clear(); }

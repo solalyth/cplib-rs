@@ -1,13 +1,18 @@
+use std::ops::Index;
+
 use crate::cplib::ds::csr::Edge;
 
 /// 木の pre-order と Euler Tour を計算する構造体。Heavy-Light Decomposition を同時に行う。
 /// 
+/// Euler Tour は仮想頂点との辺 `0 <-> par(0)` を考慮するため長さ `2n` である。Pre-order traversal は長さ `n` である。
+/// 
 /// # 木の頂点
 pub struct Tree {
+    edge: Edge,
     root: usize,
     
     par: Vec<usize>,
-    par_edge: Vec<usize>,
+    size: Vec<usize>,
     depth: Vec<usize>,
     
     /// idx -> eidx
@@ -27,63 +32,108 @@ pub struct Tree {
 }
 
 impl Tree {
-    pub fn new(edge: &mut Edge, root: usize) -> Self {
-        let n = edge.idx_len();
+    pub fn new(e: &Edge, root: usize) -> Self {
+        let n = e.idx_len();
+        assert!(e.dat_len() == (n-1)*2);
         
-        assert!(edge.dat_len() == (n-1)*2);
+        let (mut par, mut depth, mut euler, mut euler_inv, mut pre, mut pre_inv, mut head, mut next, mut size)
+            = (vec![!0; n], vec![0; n], vec![0; 2*n], vec![], vec![0; 2*n], vec![], vec![!0; n], vec![!0; n], vec![1; n]);
         
-        let (mut par, mut par_edge, mut depth, mut euler, mut euler_inv, mut pre, mut pre_inv, mut head, mut next, mut size)
-            = (vec![!0; n], vec![!0; 2*n], vec![0; n], vec![0; 2*n], vec![], vec![0; n], vec![], vec![!0; n], vec![!0; n], vec![1; n]);
+        let mut dfs = vec![root];
         
-        let mut dfs = vec![(3, root, 0), (2, root, !0), (0, root, root)];
-        
-        while let Some((f, i, x)) = dfs.pop() {
-            if f == 0 {
-                // size dfs in
-                // x: parent(i) == x
-                for l in (0..edge[i].len()).rev() {
-                    let (j, k) = edge[i][l];
-                    if j == x {
-                        par_edge[n+i] = k;
-                    } else {
+        while let Some(i) = dfs.pop() {
+            if i>>63 == 0 {
+                for &(j, _) in &e[i] {
+                    if par[i] != j {
                         par[j] = i;
-                        par_edge[j] = k;
                         depth[j] = depth[i]+1;
-                        dfs.push((1, j, l)); dfs.push((0, j, i));
+                        dfs.extend([!j, j]);
                     }
                 }
-            } else if f == 1 {
-                // size dfs out
-                // x: edge[par[i]][x] == j
-                size[par[i]] += size[i];
-                let t = edge[par[i]][0].0;
-                if t != par[par[i]] && size[t] < size[i] {
-                    edge[par[i]].swap(0, x);
-                }
-            } else if f == 2 {
-                // euler dfs in
-                // x: pre[par[i]] == x
-                let pi = pre_inv.len();
-                if head[pi] == !0 { head[pi] = pi; next[pi] = x; }
-                euler_inv.push(i); pre_inv.push(i);
-                for &(j, _) in edge[i].iter().rev() {
-                    if j == par[i] { continue; }
-                    dfs.push((3, j, 0)); dfs.push((2, j, pi));
-                }
-                if edge[i][0].0 != par[i] { head[pi+1] = head[pi]; next[pi+1] = next[pi]; }
             } else {
-                // euler dfs out
-                euler_inv.push(n+i);
+                size[par[!i]] += size[!i];
             }
         }
+        
+        let mut edge = Edge::new();
+        
+        for i in 0..n {
+            edge.next_vec();
+            for &e in &e[i] {
+                if e.0 != par[i] {
+                    edge.push(e);
+                    let j = edge[i].len()-1;
+                    if size[edge[i][0].0] < size[edge[i][j].0] { edge[i].swap(0, j); }
+                }
+            }
+        }
+        
+        dfs.extend([!root, !0, root]);
+        
+        while let Some(i) = dfs.pop() {
+            if i>>63 == 0 {
+                let pi = pre_inv.len();
+                let xpi = dfs.pop().unwrap();
+                if head[pi] == !0 { head[pi] = pi; next[pi] = xpi; }
+                euler_inv.push(i);
+                pre_inv.push(i);
+                for &(j, _) in edge[i].iter().rev() {
+                    dfs.extend([!j, pi, j]);
+                }
+                if !edge[i].is_empty() {
+                    head[pi+1] = head[pi];
+                    next[pi+1] = next[pi];
+                }
+            } else {
+                pre[n+!i] = pre_inv.len();
+                euler_inv.push(n+!i);
+            }
+        }
+        
         
         for i in 0..2*n { euler[euler_inv[i]] = i; }
         for i in 0..n { pre[pre_inv[i]] = i; }
         
-        Self { root, par, par_edge, depth, head, euler, euler_inv, pre, pre_inv, next }
+        // crate::epr!("head = {head:?}\nnext = {next:?}");
+        
+        Self { edge, root, par, size, depth, head, euler, euler_inv, pre, pre_inv, next }
     }
     
-    pub fn len(&self) -> usize { self.par.len() }
+    pub fn root(&self) -> usize { self.root }
+    pub fn len(&self) -> usize { self.edge.idx_len() }
+    
+    /// `par(root) == !0`
+    pub fn par(&self, i: usize) -> usize { self.par[i] }
+    /// `par_edge(i)` は下向き、`par_edge(n+i)` は上向きの辺の index を表す。`par_edge(root) == par_edge(n+root) == !0`
+    pub fn par_edge(&self, i: usize) -> (usize, usize) { self.edge[i][0] }
+    /// `depth[root] == 0`
+    pub fn depth(&self, i: usize) -> usize { self.depth[i] }
+    pub fn size(&self, i: usize) -> usize { self.size[i] }
+    
+    /// heavy edge を返す。
+    pub fn heavy(&self, i: usize) -> Option<&(usize, usize)> {
+        self.edge[i].first()
+    }
+    /// light edge を返す。
+    pub fn light(&self, i: usize) -> &[(usize, usize)] {
+        if self.edge[i].is_empty() { &[] } else { &self[i][1..] }
+    }
+    pub fn subtree_pre(&self, i: usize) -> &[usize] {
+        &self.pre_inv[self.pre[i]..self.pre[i]+self.size[i]]
+    }
+    
+    /// idx -> pidx
+    pub fn pre(&self, i: usize) -> usize { self.pre[i] }
+    /// pidx -> idx
+    pub fn pre_inv(&self, i: usize) -> usize { self.pre_inv[i] }
+    /// idx -> eidx
+    pub fn euler(&self, i: usize) -> usize { self.euler[i] }
+    /// eidx -> idx
+    pub fn euler_inv(&self, i: usize) -> usize { self.euler_inv[i] }
+    
+    pub fn pre_order(&self) -> &[usize] { &self.pre_inv }
+    pub fn euler_order(&self) -> &[usize] { &self.euler_inv }
+    
     
     pub fn lca_p(&self, mut pu: usize, mut pv: usize) -> usize {
         loop {
@@ -97,13 +147,15 @@ impl Tree {
         self.pre_inv[self.lca_p(self.pre[u], self.pre[v])]
     }
     
-    /// `u -> root` パスを pidx の左半開区間 `(L, R]` の列で表現する。
+    /// `u -> root` パスを pidx の区間の列で表現する。
+    /// `closed = true` のとき閉区間 `[L, R]` で表現し、特に `0` を含みうる。
+    /// `closed = false` のとき左半開区間 `(L, R]` の列で表現し、特に `0` を含まない。
     /// 
     /// 上向きのパスであるから、積を取るときは `up(R) * up(R-1) * ... * up(L+1)` の方向になることに注意。
-    pub fn path_root(&self, mut pu: usize) -> Vec<(usize, usize)> {
+    pub fn path_root(&self, mut pu: usize, closed: bool) -> Vec<(usize, usize)> {
         let mut res = vec![];
-        while pu != 0 {
-            res.push((self.head[pu].max(1)-1, pu));
+        while pu != !0 {
+            res.push((if closed {self.head[pu]} else {self.head[pu].max(1)-1}, pu));
             pu = self.next[pu];
         }
         res
@@ -116,23 +168,24 @@ impl Tree {
     /// `res[0]` は上向きのパスであり、積を取るときは `up(R) * up(R-1) * ... * up(L+1)` の方向になることに注意。
     /// また、`LCA(u, v)` に対応する辺は含まれないため、頂点属性の積を取るときは注意。
     pub fn path(&self, pu: usize, pv: usize) -> [Vec<(usize, usize)>; 2] {
-        let mut path = [self.path_root(pu), self.path_root(pv)];
-        while let Some((ul, ur)) = path[0].pop() {
-            let Some((vl, vr)) = path[1].pop() else { break; };
+        let mut path = [self.path_root(pu, false), self.path_root(pv, false)];
+        while let (Some(&(ul, ur)), Some(&(vl, vr))) = (path[0].last(), path[1].last()) {
             if ul != vl { break; }
-            if ur < vr { path[1].push((vl, vr)); }
-            if vr < ur { path[0].push((ul, ur)); }
+            path[0].pop();
+            path[1].pop();
+            if ur < vr { path[1].push((vl, vr)); break; }
+            if vr < ur { path[0].push((ul, ur)); break; }
         }
         path
     }
     
     /// `pu -> root` パスの `k` 個目の頂点を `Ok(pidx)` を返す。存在しないとき、`Err(k - depth)` を返す。
-    pub fn kth_ancestor_root(&self, mut pu: usize, mut k: usize) -> Result<usize, usize> {
-        while pu != 0 {
+    pub fn kth_ancestor(&self, mut pu: usize, mut k: usize) -> Result<usize, usize> {
+        while pu != !0 {
             let pl = self.head[pu].max(1)-1;
             if k < pu-pl { return Ok(pu-k); }
-            pu = self.next[pu];
             k -= pu-pl;
+            pu = self.next[pu];
         }
         if k == 0 { Ok(0) } else { Err(k) }
         
@@ -147,111 +200,28 @@ impl Tree {
         // if k == 0 { Ok(self.root) } else { Err(k) }
     }
     
-    pub fn root(&self) -> usize { self.root }
+    /// 重心 `c` を根としたとき、部分木のサイズは `N-1` の切り上げ半分以下となる。
+    /// 重心が二個あるケースを考慮すると、部分木のサイズは (重心以外の頂点数) の切り下げ半分以下となる。
+    pub fn centroid(&self) -> usize {
+        let mut r = self.root;
+        'q: loop {
+            for &(i, _) in &self.edge[r] {
+                if self.size[i] >= (self.len()+1)/2 { r = i; continue 'q; }
+            }
+            break;
+        }
+        r
+    }
     
-    /// `par(root) == !0`
-    pub fn par(&self, i: usize) -> usize { self.par[i] }
-    /// `par_edge(i)` は下向き、`par_edge(n+i)` は上向きの辺の index を表す。`par_edge(root) == par_edge(n+root) == !0`
-    pub fn par_edge(&self, i: usize) -> usize { self.par_edge[i] }
-    /// `depth[root] == 0`
-    pub fn depth(&self, i: usize) -> usize { self.depth[i] }
     
-    /// idx -> pidx
-    pub fn pre(&self, i: usize) -> usize { self.pre[i] }
-    /// pidx -> idx
-    pub fn pre_inv(&self, i: usize) -> usize { self.pre_inv[i] }
-    /// idx -> eidx
-    pub fn euler(&self, i: usize) -> usize { self.euler[i] }
-    /// eidx -> idx
-    pub fn euler_inv(&self, i: usize) -> usize { self.euler_inv[i] }
-    
-    pub fn pre_order(&self) -> &[usize] { &self.pre_inv }
-    pub fn euler_order(&self) -> &[usize] { &self.euler_inv }
+    pub fn debug_edge(&self) {
+        for i in 0..self.len() {
+            crate::epr!("edge[{i}] = {:?}", self[i].iter().map(|e| e.0).collect::<Vec<_>>());
+        }
+    }
 }
 
-// #![allow(dead_code)]
-
-// pub use crate::cplib::ds::csr::Edge;
-// use crate::cplib::ds::segtree::{Segtree, SegtreeOp};
-// use std::cell::UnsafeCell;
-
-// const MASK: usize = (1<<32)-1;
-
-// pub struct Tree<'a> {
-//     edge: &'a Edge,
-//     root: usize,
-//     par: Vec<usize>,
-//     depth: Vec<usize>, // depth[root] = 0
-//     lca: UnsafeCell<Segtree<LCA>>, // ET-order
-//     /// vertex-idx -> ET-idx
-//     euler: Vec<usize>,
-//     /// ET-idx -> vertex-idx
-//     euler_inv: Vec<usize>,
-// }
-
-// impl<'a> Tree<'a> {
-//     pub fn new(edge: &'a Edge, root: usize) -> Self {
-//         let n = edge.idx_len();
-//         let mut par = vec![root; n];
-//         let mut euler = vec![0; n*2];
-//         let mut euler_inv = vec![];
-//         let mut lca = vec![];
-//         let mut depth = vec![0; n];
-//         let mut dfs = vec![root+n, root];
-        
-//         assert!(edge.dat_len() == (n-1)*2);
-        
-//         while let Some(i) = dfs.pop() {
-//             euler[i] = euler_inv.len();
-//             euler_inv.push(i);
-//             if i < n {
-//                 lca.push((depth[i]+1<<32)+i);
-//                 for &(j, _) in edge[i].iter().rev() {
-//                     if par[i] != j {
-//                         par[j] = i;
-//                         depth[j] = depth[i]+1;
-//                         dfs.push(j+n);
-//                         dfs.push(j);
-//                     }
-//                 }
-//             } else {
-//                 lca.push((depth[i-n]<<32)+par[i-n]);
-//             }
-//         }
-//         par[root] = !0;
-//         Self { edge, root, par, depth, lca: UnsafeCell::new(Segtree::from_iter(lca)), euler, euler_inv }
-//     }
-    
-//     fn len(&self) -> usize { self.edge.idx_len() }
-//     pub fn par(&self, i: usize) -> usize { self.par[i] }
-//     pub fn depth(&self, i: usize) -> usize { self.depth[i] }
-//     pub fn lca(&self, u: usize, v: usize) -> usize {
-//         let (eu, ev) = crate::minmax!(self.euler[u], self.euler[v]);
-//         unsafe{&mut *self.lca.get()}.fold(eu..=ev) & MASK
-//     }
-//     pub fn kth_ancestor(&self, u: usize, k: usize) -> Option<usize> {
-//         let n = self.len();
-//         let r = unsafe{&mut *self.lca.get()}.max_right(self.euler[u], 2*n, |&(mut v)| {
-//             v &= MASK;
-//             v < 2*n && self.depth[u] <= self.depth[v]+k
-//         });
-//         if r == 2*n+1 { None } else { Some(self.euler_inv[r-1]-n) }
-//     }
-//     pub fn dist(&self, u: usize, v: usize) -> usize {
-//         let p = self.lca(u, v);
-//         self.depth[u] + self.depth[v] - 2*self.depth[p]
-//     }
-//     /// ET-order を返す。`in: i, out: i+N`
-//     pub fn order(&self) -> &[usize] { &self.euler_inv }
-//     /// `(max depth, idx)`
-//     pub fn depth_max(&self) -> (usize, usize) { (0..self.edge.idx_len()).map(|i| (self.depth[i], i)).max().unwrap() }
-// }
-
-
-// struct LCA;
-// impl SegtreeOp for LCA {
-//     type Value = usize;
-//     type Lazy = ();
-//     fn id_value() -> Self::Value { !0 }
-//     fn prod_value(lhs: &Self::Value, rhs: &Self::Value) -> Self::Value { *lhs.min(rhs) }
-// }
+impl Index<usize> for Tree {
+    type Output = [(usize, usize)];
+    fn index(&self, i: usize) -> &Self::Output { &self.edge[i] }
+}

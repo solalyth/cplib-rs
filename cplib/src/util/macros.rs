@@ -61,11 +61,22 @@ macro_rules! swap {
 
 #[macro_export]
 macro_rules! prefix {
-    ($v:expr) => { {
-        let mut res = vec![0];
-        for x in $v.into_iter() { res.push(res.last().unwrap()+x); }
+    ($init:expr, $v:expr) => { {
+        let mut res = vec![$init];
+        for x in $v.into_iter() { res.push(*res.last().unwrap()+x); }
         res
     } };
+    ($v:expr) => { prefix!(0, $v) }
+}
+
+#[macro_export]
+macro_rules! sum {
+    ($init:expr, $v:expr) => { {
+        let mut res = $init;
+        for x in $v.into_iter() { res += x; }
+        res
+    } };
+    ($v:expr) => { sum!(0, $v) }
 }
 
 #[macro_export]
@@ -78,4 +89,12 @@ macro_rules! vadd {
         let x = $x;
         for e in &mut $v { *e += x; }
     }}
+}
+
+#[macro_export]
+macro_rules! add {
+    ($x:expr; $y:expr) => {
+        let t = $y;
+        $x += t;
+    };
 }

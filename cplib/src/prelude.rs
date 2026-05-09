@@ -7,7 +7,7 @@ pub use std::{
 pub use crate::cplib::{
     *,
     SUBMISSION,
-    ds::{unionfind::UnionFind, segtree::*, csr::CSR},
+    ds::{unionfind::UnionFind, segtree::*, csr::{CSR, Edge}},
     algo::func::*,
     math::modtable::O,
     traits::{grid::Grid, char_util::CharUtil, map_init::MapInit, vec_split::VecSplit, iter_util::IterUtil},
