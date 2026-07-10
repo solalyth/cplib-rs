@@ -2,17 +2,25 @@ use std::{fmt::Debug, ops::{Index, IndexMut}};
 
 
 #[derive(Clone)]
-pub struct CSR<T: Default> {
+pub struct CSR<T> {
     dat: Vec<T>,
     idx: Vec<usize>,
 }
 
-/// `(j, idx) in csr[i]` means `idx: i -> j`
-pub type Edge = CSR<(usize, usize)>;
+pub type Edge = CSR<usize>;
 
 impl Edge {
     /// 無向辺なら `und = true` とすること。
-    pub fn from_edges(n: usize, und: bool, iter: impl IntoIterator<Item = (usize, usize)> + Clone) -> Self {
+    pub fn from_edges(n: usize, und: bool, rev: bool, uv: &[(usize, usize)]) -> Self {
+        if rev {
+            Self::from_edges_iter(n, und, uv.iter().map(|e| (e.1, e.0)))
+        } else {
+            Self::from_edges_iter(n, und, uv.iter().cloned())
+        }
+    }
+
+    /// 無向辺なら `und = true` とすること。
+    pub fn from_edges_iter(n: usize, und: bool, iter: impl IntoIterator<Item = (usize, usize)> + Clone) -> Self {
         let mut idx = vec![0; n+2];
         for (i, j) in iter.clone() {
             idx[i+2] += 1;
@@ -20,28 +28,18 @@ impl Edge {
         }
         for i in 0..=n { idx[i+1] += idx[i]; }
         
-        let mut dat = vec![(0, 0); idx.pop().unwrap()];
-        for (k, (i, j)) in iter.into_iter().enumerate() {
-            dat[idx[i+1]] = (j, k); idx[i+1] += 1;
-            if und && i != j { dat[idx[j+1]] = (i, k); idx[j+1] += 1; }
+        let mut dat = vec![0; idx.pop().unwrap()];
+        for (i, j) in iter.into_iter() {
+            dat[idx[i+1]] = j; idx[i+1] += 1;
+            if und && i != j { dat[idx[j+1]] = i; idx[j+1] += 1; }
         }
         
         Self { dat, idx }
     }
-    
-    pub fn sort(&mut self) {
-        for i in 0..self.idx_len() {
-            self.dat[self.idx[i]..self.idx[i+1]].sort_unstable();
-        }
-    }
-    
-    pub fn contains(&self, u: usize, v: usize) -> bool {
-        self[u].binary_search_by_key(&v, |e| e.0).is_ok()
-    }
 }
 
-impl<T: Default> CSR<T> {
-    /// `[]` に相当する配列を作る。
+impl<T> CSR<T> {
+    /// `[]` に相当する配列を作る。`[[]]` ではないのでまず [`CSR::next_vec`] する必要があることに注意。
     pub fn new() -> Self {
         Self { dat: vec![], idx: vec![0] }
     }
@@ -56,29 +54,43 @@ impl<T: Default> CSR<T> {
     pub fn next_vec(&mut self) {
         self.idx.push(self.dat.len());
     }
+    
+    pub fn sort(&mut self) where T: Ord {
+        for i in 0..self.idx_len() {
+            self.dat[self.idx[i]..self.idx[i+1]].sort_unstable();
+        }
+    }
+    
+    pub fn contains(&self, u: usize, x: &T) -> bool where T: Ord {
+        self[u].binary_search(x).is_ok()
+    }
 }
 
-impl<T: Default> Index<usize> for CSR<T> {
+impl<T> Index<usize> for CSR<T> {
     type Output = [T];
     fn index(&self, i: usize) -> &Self::Output {
         &self.dat[self.idx[i]..self.idx[i+1]]
     }
 }
 
-impl<T: Default> IndexMut<usize> for CSR<T> {
+impl<T> IndexMut<usize> for CSR<T> {
     fn index_mut(&mut self, i: usize) -> &mut Self::Output {
         &mut self.dat[self.idx[i]..self.idx[i+1]]
     }
 }
 
-impl Debug for Edge {
+impl<T: Clone + Debug> Debug for CSR<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut v = vec![];
+        let mut s = String::new();
         for i in 0..self.idx_len() {
-            for &(j, k) in &self[i] {
-               v.push((i, j, k));
+            s += &format!("{i}: [, ");
+            for x in &self[i] {
+                s.pop(); s.pop();
+                s += &format!("{x:?}, ");
             }
+            s.pop(); s.pop(); s += "], ";
         }
-        write!(f, "{v:?}")
+        s.pop(); s.pop();
+        write!(f, "{{ {s} }}")
     }
 }

@@ -9,7 +9,7 @@ pub use {
     // atcoder only
     superslice::Ext,
     num::integer::{gcd, lcm, Roots},
-    num::Rational64,
+    num::{Rational64, BigInt},
     ac_library,
     rand
 };

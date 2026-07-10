@@ -19,7 +19,7 @@ macro_rules! mul {
 const BASE: [u128; 2] = [37, 43];
 const INV: [u128; 2] = [2181202846553494278, 965236608508057933];
 
-// fast pow: 2^B 進数で C 個に分割する。2^BC まで計算可能。
+// fast pow: 2^B 進数で C 個に分割する。2^BC まで計算可能。2 倍くらい速くなった。
 const B: usize = 8;
 const C: usize = 8;
 
@@ -54,9 +54,6 @@ macro_rules! impl_fast_pow {
         }
     };
 }
-
-
-
 impl_fast_pow!(BASE, BASE_TABLE, base_pow);
 impl_fast_pow!(INV, INV_TABLE, inv_pow);
 
@@ -69,7 +66,7 @@ impl_fast_pow!(INV, INV_TABLE, inv_pow);
 /// - `Add, Sub, Shl<usize>, Shr<usize>`
 /// - `Deref<Target = [u64; 2]>`
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
-pub struct Hash(pub(crate) [u64; 2]);
+pub struct Hash(pub [u64; 2]);
 
 impl Hash {
     /// # Panics
@@ -116,6 +113,11 @@ impl Shr<usize> for Hash {
 }
 
 
+
+pub fn get_range(s: &[Hash], mut l: usize, mut r: usize, rev: bool) -> Hash {
+    if rev { (l, r) = (s.len()-r, s.len()-l); }
+    s[r] - (s[l] << r-l)
+}
 
 /// `&[Hash]` として `[..=lcp]` まで一致していることを表す。すなわち、平文として `[..lcp]` まで一致している。
 pub fn lcp(s: &[Hash], t: &[Hash]) -> usize {

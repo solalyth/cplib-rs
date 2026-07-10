@@ -1,4 +1,3 @@
-pub use crate::cplib::math::func::divisors;
 use std::ops::{Add, Sub};
 
 const MASK: usize = (1<<16)-1;
@@ -56,11 +55,22 @@ impl LpfSieve {
         Self { primes, table }
     }
     
-    pub fn max(&self) -> usize { self.table.len()-1 }
+    fn max(&self) -> usize { self.table.len()-1 }
     
     pub fn primes(&self) -> &[usize] { &self.primes }
     
-    pub fn is_prime(&self, n: usize) -> bool { 2 <= n && self.table[n] & MASK == 0 }
+    pub fn is_prime(&self, n: usize) -> bool {
+        assert!(1 <= n && n <= self.max().pow(2));
+        if n <= self.max() {
+            n != 1 && self.table[n]&MASK == 0
+        } else {
+            for &p in &self.primes {
+                if n%p == 0 { return true; }
+                if n < p*p { break; }
+            }
+            false
+        }
+    }
     
     pub fn lpf(&self, n: usize) -> usize {
         assert!(2 <= n);
@@ -119,6 +129,17 @@ impl LpfSieve {
             if n != 1 { res.push((n, 1)); }
             res
         }
+    }
+    
+    pub fn divisors(&self, n: usize) -> Vec<usize> {
+        let mut res = vec![1];
+        for (p, e) in self.fact(n) {
+            for i in 0..res.len() {
+                let mut k = res[i];
+                for _ in 0..e { k *= p; res.push(k); }
+            }
+        }
+        res
     }
     
     

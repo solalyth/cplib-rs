@@ -17,7 +17,6 @@ fn sep(l: (i64, i64), r: (i64, i64)) -> i64 {
 /// # Reference
 /// 
 /// - [クエリが整数の Convex Hull Trick の凸判定 (noshi91)](https://noshi91.hatenablog.com/entry/2021/03/23/200810)
-///   + 最大値を求めるため、`max {ax+b >= cx+d}` の形になっている。
 #[derive(Debug)]
 pub struct ConvexHullTrick {
     dat: VecDeque<(i64, i64)>,
@@ -33,8 +32,7 @@ impl ConvexHullTrick {
         if let Some(r) = self.dat.back() {
             assert!(r.0 <= a);
             if r.0 == a {
-                if b <= r.1 { return; }
-                self.dat.pop_back();
+                if b <= r.1 { return; } else { self.dat.pop_back(); }
             }
         }
         
@@ -51,8 +49,7 @@ impl ConvexHullTrick {
         if let Some(l) = self.dat.front() {
             assert!(a <= l.0);
             if l.0 == a {
-                if b <= l.1 { return; }
-                self.dat.pop_front();
+                if b <= l.1 { return; } else { self.dat.pop_front(); }
             }
         }
         

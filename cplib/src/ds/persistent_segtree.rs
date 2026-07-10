@@ -5,8 +5,6 @@ use std::fmt::Debug;
 /// Operator for [`PersistentSegtree`]
 #[allow(unused_variables)]
 pub trait PersistentSegtreeOp: Sized {
-    const BEATS: bool = false;
-    
     type Value: Clone + Debug;
     type Lazy: Clone;
     

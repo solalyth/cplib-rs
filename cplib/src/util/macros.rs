@@ -4,6 +4,7 @@
 #[macro_export]
 macro_rules! nest {
     [void; $n:expr] => { std::vec![std::vec![]; $n] };
+    // void が打ちやすくて void になってしまっているが、変すぎる。
     [void; $n:expr $(;$m:expr)+] => { std::vec![crate::nest![void$(;$m)+]; $n] };
     
     [$($v:expr),*] => { std::vec![$($v),*] };
@@ -12,16 +13,9 @@ macro_rules! nest {
 }
 
 #[macro_export]
-macro_rules! iota {
-    ($range:expr) => { ($range).collect::<Vec<_>>() };
-    ($range:expr, $($f:tt)*) => { ($range).map($($f)*).collect::<Vec<_>>() };
-}
-
-
-// Float は Ord が使えないので reduce している
-
-#[macro_export]
 macro_rules! min {
+    ($x:expr, $y:expr) => {{ let (x, y) = ($x, $y); if x <= y { x } else { y } }};
+    // PartialOrd 用に reduce している
     ($($vl:expr),+) => { [$($vl),+].into_iter().reduce(|x,y| if x <= y {x} else {y}).unwrap() }
 }
 
@@ -30,27 +24,17 @@ macro_rules! max {
     ($($vl:expr),+) => { [$($vl),+].into_iter().reduce(|x,y| if x >= y {x} else {y}).unwrap() }
 }
 
-#[macro_export]
-macro_rules! minmax {
-    ($v:expr, $w:expr) => {{
-        let (v, w) = ($v, $w); if v <= w { (v, w) } else { (w, v) }
-    }};
-    ($($vl:expr),+) => {{
-        let l = [$($vl),+]; (l.iter().reduce(|x,y| if x <= y {x} else {y}).unwrap().clone(), l.iter().reduce(|x,y| if x >= y {x} else {y}).unwrap().clone())
-    }}
-}
-
 /// `min(values) < dst` であるとき `true` を返す。
 #[macro_export]
 macro_rules! chmin {
-    ($dst:expr; $v:expr) => { { let v = $v; if v < $dst { $dst = v; true } else { false } } };
+    ($dst:expr; $v:expr) => {{ let v = $v; if v < $dst { $dst = v; true } else { false } }};
     ($dst:expr; $($vl:expr),+) => { crate::chmin!($dst; crate::min!($($vl),+)) }
 }
 
 /// `dst < max(values)` であるとき `true` を返す。
 #[macro_export]
 macro_rules! chmax {
-    ($dst:expr; $v:expr) => { { let v = $v; if $dst < v { $dst = v; true } else { false } } };
+    ($dst:expr; $v:expr) => {{ let v = $v; if $dst < v { $dst = v; true } else { false } }};
     ($dst:expr; $($vl:expr),+) => { crate::chmax!($dst; crate::max!($($vl),+)) }
 }
 
@@ -59,23 +43,25 @@ macro_rules! swap {
     ($l:expr, $r:expr) => { ($l, $r) = ($r, $l); };
 }
 
+/// 累積和を求める。usage: `prefix!(init: T, iter: impl IntoIterator<T>)`, `prefix!(iter: impl IntoIterator<int or &int>)`
 #[macro_export]
 macro_rules! prefix {
-    ($init:expr, $v:expr) => { {
+    ($init:expr, $v:expr) => {{
         let mut res = vec![$init];
         for x in $v.into_iter() { res.push(*res.last().unwrap()+x); }
         res
-    } };
+    }};
     ($v:expr) => { prefix!(0, $v) }
 }
 
 #[macro_export]
+/// 総和を求める。`sum!(init, iter)`, `sum!(iter)`
 macro_rules! sum {
-    ($init:expr, $v:expr) => { {
+    ($init:expr, $v:expr) => {{
         let mut res = $init;
         for x in $v.into_iter() { res += x; }
         res
-    } };
+    }};
     ($v:expr) => { sum!(0, $v) }
 }
 
@@ -91,10 +77,30 @@ macro_rules! vadd {
     }}
 }
 
+/// for modint
+// #[macro_export]
+// macro_rules! o {
+//     ($x:expr, += $y:expr) => { let t = $y; $x = $x+t; };
+//     ($x:expr, -= $y:expr) => { let t = $y; $x = $x-t; };
+//     ($x:expr, *= $y:expr) => { let t = $y; $x = $x*t; };
+//     ($x:expr, /= $y:expr) => { let t = $y; $x = $x/t; };
+// }
+
+
+
+/// `map_init!(map, key, value) -> &mut V`
 #[macro_export]
-macro_rules! add {
-    ($x:expr; $y:expr) => {
-        let t = $y;
-        $x += t;
-    };
+macro_rules! map_init {
+    ($map:expr, $key:expr, $value:expr) => { $map.entry($key).or_insert_with(|| $value) };
+}
+
+/// `counter!(map, key, x) -> int`
+#[macro_export]
+macro_rules! counter {
+    ($map:expr, $key:expr, $x:expr) => {{
+        let k = $key;
+        let x = $x + $map.get(&k).unwrap_or(&0);
+        if 0 < x { $map.insert(k, x); } else { $map.remove(&k); }
+        x
+    }}
 }

@@ -13,10 +13,11 @@ pub trait CharUtil: Clone {
     const NUMBER: [Self; 10];
     
     fn us(self) -> usize;
-    fn parse_lower(self) -> usize;
-    fn parse_upper(self) -> usize;
-    fn parse_digit(self) -> usize;
+    // fn parse_lower(self) -> usize;
+    // fn parse_upper(self) -> usize;
+    // fn parse_digit(self) -> usize;
     
+    #[must_use]
     fn flip(self) -> Self;
 }
 
@@ -33,18 +34,14 @@ impl CharUtil for char {
         out
     };
     
-    const NUMBER: [char; 10] = {
-        let (mut res, mut i) = (['_'; 10], 0);
-        while i < 10 { res[i] = (i+48) as u8 as char; i += 1; }
-        res
-    };
+    const NUMBER: [char; 10] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
     
     fn us(self) -> usize {
         if self <= '9' { self as usize - 48 } else { (self as usize & 31) - 1 }
     }
-    fn parse_lower(self) -> usize { debug_assert!('a' <= self && self <= 'z'); self as usize - 97 }
-    fn parse_upper(self) -> usize { debug_assert!('A' <= self && self <= 'Z'); self as usize - 65 }
-    fn parse_digit(self) -> usize { debug_assert!('0' <= self && self <= '9'); self as usize - 48 }
+    // fn parse_lower(self) -> usize { debug_assert!('a' <= self && self <= 'z'); self as usize - 97 }
+    // fn parse_upper(self) -> usize { debug_assert!('A' <= self && self <= 'Z'); self as usize - 65 }
+    // fn parse_digit(self) -> usize { debug_assert!('0' <= self && self <= '9'); self as usize - 48 }
     
     fn flip(self) -> Self { (self as u8 ^ 32) as char }
 }

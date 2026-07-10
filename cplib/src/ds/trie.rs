@@ -19,7 +19,7 @@ impl<const W: usize> Trie<W> {
     /// ノード数を返す。
     pub fn len(&self) -> usize { self.dat.len() / (W+1) }
     
-    pub fn clear(&mut self) { self.dat.clear(); }
+    pub fn clear(&mut self) { self.dat.truncate(W+1); }
     
     /// `next(par, c) == idx` となる `(par, c)` を返す。
     /// 
@@ -72,14 +72,15 @@ impl<const W: usize> Trie<W> {
     /// [`AhoCorasick`] を構築する。
     pub fn aho_corasick(&self) -> AhoCorasick<W> {
         let mut dat = vec![0; (W+1)*self.len()];
+        let mut stk = std::collections::VecDeque::from([0]);
         
-        for i in 0..self.len() {
-            // next[..i], fail[..=i] が計算されている
+        while let Some(i) = stk.pop_front() {
             for c in 0..W {
                 let (j, fj) = (self.dat[(W+1)*i+c], dat[(W+1)*dat[(W+1)*i+W]+c]);
                 if j != !0 {
                     dat[(W+1)*j+W] = fj;
                     dat[(W+1)*i+c] = j;
+                    stk.push_back(j);
                 } else {
                     dat[(W+1)*i+c] = fj;
                 }

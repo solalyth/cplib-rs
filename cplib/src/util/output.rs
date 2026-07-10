@@ -8,11 +8,9 @@ use std::{mem::replace, ops::{Not, Shl}, fmt::Write};
 
 static mut BUFFER: Buffer = Buffer { buf: String::new(), endp: false, prev: Previous::LineHead };
 
-/// # Fields
-/// 
-/// `endp`: `out << end` で出力するかどうか
 pub struct Buffer {
     buf: String,
+    /// `out << end` で出力するかどうか
     endp: bool,
     prev: Previous,
 }
@@ -20,11 +18,7 @@ pub struct Buffer {
 impl Buffer {
     fn print(&mut self) {
         if replace(&mut self.prev, Previous::LineHead) == Previous::LineHead { self.buf.pop(); }
-        if crate::cplib::SUBMISSION {
-            if !self.buf.is_empty() {
-                println!("{}", self.buf);
-            }
-        } else {
+        if crate::cplib::LOCAL {
             eprint!("\x1b[32m");
             if self.buf.is_empty() {
                 eprintln!("(empty)");
@@ -32,6 +26,10 @@ impl Buffer {
                 println!("{}", self.buf);
             }
             eprint!("\x1b[0m");
+        } else {
+            if !self.buf.is_empty() {
+                println!("{}", self.buf);
+            }
         }
         self.buf.clear();
     }
@@ -73,6 +71,12 @@ impl out {
         unsafe {
             BUFFER.space(true);
             v.fmt(&mut BUFFER.buf);
+        }
+    }
+    
+    pub fn sp() {
+        unsafe {
+            BUFFER.prev = Previous::Space;
         }
     }
     

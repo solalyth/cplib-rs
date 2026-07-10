@@ -33,13 +33,24 @@ impl Scan {
     }
     
     pub fn read() {
-        if crate::SUBMISSION { Self::read_eof(); } else { Self::read_line(); }
+        if crate::LOCAL { Self::read_line(); } else { Self::read_eof(); }
     }
     
+    pub fn char() -> char { next() }
     pub fn usize() -> usize { next() }
     pub fn u64() -> u64 { next() }
     pub fn i64() -> i64 { next() }
     pub fn string() -> String { next() }
     pub fn chars() -> Vec<char> { next::<String>().chars().collect() }
     pub fn vec<T: std::str::FromStr>(n: usize) -> Vec<T> { (0..n).map(|_| next()).collect() }
+    pub fn vusize(n: usize) -> Vec<usize> { Scan::vec(n) }
+    pub fn vu64(n: usize) -> Vec<u64> { Scan::vec(n) }
+    pub fn vi64(n: usize) -> Vec<i64> { Scan::vec(n) }
+}
+
+#[macro_export]
+macro_rules! VEC {
+    ($t:ty; $n:expr) => {
+        Scan::vec::<$t>($n)
+    };
 }

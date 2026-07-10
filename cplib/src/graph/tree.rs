@@ -43,7 +43,7 @@ impl Tree {
         
         while let Some(i) = dfs.pop() {
             if i>>63 == 0 {
-                for &(j, _) in &e[i] {
+                for &j in &e[i] {
                     if par[i] != j {
                         par[j] = i;
                         depth[j] = depth[i]+1;
@@ -60,10 +60,10 @@ impl Tree {
         for i in 0..n {
             edge.next_vec();
             for &e in &e[i] {
-                if e.0 != par[i] {
+                if e != par[i] {
                     edge.push(e);
                     let j = edge[i].len()-1;
-                    if size[edge[i][0].0] < size[edge[i][j].0] { edge[i].swap(0, j); }
+                    if size[edge[i][0]] < size[edge[i][j]] { edge[i].swap(0, j); }
                 }
             }
         }
@@ -77,7 +77,7 @@ impl Tree {
                 if head[pi] == !0 { head[pi] = pi; next[pi] = xpi; }
                 euler_inv.push(i);
                 pre_inv.push(i);
-                for &(j, _) in edge[i].iter().rev() {
+                for &j in edge[i].iter().rev() {
                     dfs.extend([!j, pi, j]);
                 }
                 if !edge[i].is_empty() {
@@ -104,18 +104,20 @@ impl Tree {
     
     /// `par(root) == !0`
     pub fn par(&self, i: usize) -> usize { self.par[i] }
-    /// `par_edge(i)` は下向き、`par_edge(n+i)` は上向きの辺の index を表す。`par_edge(root) == par_edge(n+root) == !0`
-    pub fn par_edge(&self, i: usize) -> (usize, usize) { self.edge[i][0] }
+    
+    // /// `par_edge(i)` は下向き、`par_edge(n+i)` は上向きの辺の index を表す。`par_edge(root) == par_edge(n+root) == !0`
+    // pub fn par_edge(&self, i: usize) -> (usize, usize) { self.edge[i][0] }
+    
     /// `depth[root] == 0`
     pub fn depth(&self, i: usize) -> usize { self.depth[i] }
     pub fn size(&self, i: usize) -> usize { self.size[i] }
     
     /// heavy edge を返す。
-    pub fn heavy(&self, i: usize) -> Option<&(usize, usize)> {
-        self.edge[i].first()
+    pub fn heavy(&self, i: usize) -> Option<usize> {
+        self.edge[i].first().copied()
     }
     /// light edge を返す。
-    pub fn light(&self, i: usize) -> &[(usize, usize)] {
+    pub fn light(&self, i: usize) -> &[usize] {
         if self.edge[i].is_empty() { &[] } else { &self[i][1..] }
     }
     pub fn subtree_pre(&self, i: usize) -> &[usize] {
@@ -205,7 +207,7 @@ impl Tree {
     pub fn centroid(&self) -> usize {
         let mut r = self.root;
         'q: loop {
-            for &(i, _) in &self.edge[r] {
+            for &i in &self.edge[r] {
                 if self.size[i] >= (self.len()+1)/2 { r = i; continue 'q; }
             }
             break;
@@ -213,15 +215,14 @@ impl Tree {
         r
     }
     
-    
     pub fn debug_edge(&self) {
-        for i in 0..self.len() {
-            crate::epr!("edge[{i}] = {:?}", self[i].iter().map(|e| e.0).collect::<Vec<_>>());
+        for _i in 0..self.len() {
+            crate::epr!("edge[{_i}] = {:?}", self[_i].iter().collect::<Vec<_>>());
         }
     }
 }
 
 impl Index<usize> for Tree {
-    type Output = [(usize, usize)];
+    type Output = [usize];
     fn index(&self, i: usize) -> &Self::Output { &self.edge[i] }
 }

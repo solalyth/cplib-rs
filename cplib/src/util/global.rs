@@ -24,18 +24,23 @@ unsafe impl<T> Sync for Global<T> {}
 
 
 
-pub trait GlobalUtil: Sized {
-    fn into_global() -> Global<Self> { Global::new() }
-}
-
-impl<T> GlobalUtil for T {}
 
 
 #[macro_export]
+/// `gl!(var: T)`: グローバル変数定義
+/// `gl!(var = val)`: グローバル変数初期化
+/// `gl!(var) -> &mut T` グローバル変数参照
 macro_rules! gl {
-    ($var:ident: $t:ty = $val:expr) => {
-        // use crate::cplib::util::global::Global;
-        static $var: Global<$t> = Global::new();
+    ($var:ident: $t:ty) => {
+        static $var: crate::util::global::Global<$t> = crate::util::global::Global::new();
+    };
+    ($var:ident = $val:expr) => {
         $var.set_global($val);
     };
+    ($var:ident) => {
+        $var.get_mut_global()
+    };
+    (& $var:ident) => {
+        $var.get_global()
+    }
 }

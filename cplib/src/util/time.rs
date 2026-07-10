@@ -20,7 +20,7 @@ pub fn wait(t: u128) {
 
 pub fn assert_wait(v: bool, t: u128) {
     if !v {
-        if crate::SUBMISSION { wait(t); }
+        if !crate::LOCAL { wait(t); }
         panic!();
     }
 }

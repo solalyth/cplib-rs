@@ -1,20 +1,24 @@
+pub static mut EPR_COUNT: u32 = 0;
+pub static mut EPR_LIMIT: u32 = 300;
+
 pub fn replace_inf_and_truncate(mut s: String) -> String {
     let (mut res, mut stk) = (String::new(), String::new());
     s.push('*');
     for c in s.chars() {
         if c.is_numeric() || c == '.' { stk.push(c); continue; }
         // inf = 1.15e18 < 2^60
-        if stk.parse::<f64>().map_or(false, |s| 1.15e18 <= s) { res += "inf"; } else { res += &stk; }
+        if stk.parse::<f64>().map_or(false, |s| 1e9 <= s) { res += "inf"; } else { res += &stk; }
+        // if stk.parse::<f64>().map_or(false, |s| 1.15e18 <= s) { res += "inf"; } else { res += &stk; }
         stk.clear();
         res.push(c);
     }
     res.pop();
-    if res.len() >= 500 { res.truncate(500); res += "<skipped>"; }
+    if res.len() > 500 { res.truncate(500); res += "<skipped>"; }
     res
 }
 
-pub fn epr_table<T: std::fmt::Debug>(src: &Vec<Vec<T>>, mut imax: usize, mut jmax: usize) {
-    if crate::cplib::SUBMISSION { return; }
+pub fn debug_table<T: std::fmt::Debug>(src: &Vec<Vec<T>>, mut imax: usize, mut jmax: usize) {
+    if !crate::cplib::LOCAL { return; }
     
     use std::fmt::Write;
     let (mut lmax, mut res) = (2, String::from("     "));
@@ -45,18 +49,50 @@ pub fn epr_table<T: std::fmt::Debug>(src: &Vec<Vec<T>>, mut imax: usize, mut jma
 
 #[macro_export]
 macro_rules! epr {
-    ($($args:tt)*) => {
-        if !$crate::SUBMISSION {
+    ($($args:tt)*) => {{
+        use crate::util::debug::EPR_COUNT;
+        if $crate::LOCAL && unsafe {EPR_COUNT} < 300 {
             eprintln!("\x1b[31m{}\x1b[0m", crate::util::debug::replace_inf_and_truncate(format!($($args)*)));
             // eprintln!("\x1b[31m{}\x1b[0m", format!($($args)*));
+            unsafe {
+                EPR_COUNT += 1;
+                if EPR_COUNT == 300 {
+                    eprintln!("\x1b[31mepr skipped\x1b[0m");
+                }
+            }
         }
-    }
+    }}
 }
 
 
 #[macro_export]
 macro_rules! oj_local {
     ($oj:expr, $local:expr) => {
-        if $crate::SUBMISSION { $oj } else { $local }
+        if $crate::LOCAL { $local } else { $oj }
+    };
+}
+
+
+#[macro_export]
+macro_rules! table {
+    ($t:expr, $x:expr, $y:expr) => {
+        crate::util::debug::debug_table($t, $x, $y);
+    };
+    ($t:expr) => {
+        table!($t, !0, !0);
+    };
+}
+
+#[macro_export]
+macro_rules! print_bits {
+    ($x:expr, $n:expr) => {
+        let mut s = String::new();
+        let mut n = ($n+3)/4*4;
+        for i in 0..n {
+            if i%4 == 0 { s.push('_'); }
+            s.push(if $x>>i & 1 == 0 {'0'} else {'1'});
+        }
+        s.remove(0);
+        epr!("{} ({})", s.chars().rev().collect::<String>(), $x);
     };
 }

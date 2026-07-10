@@ -2,7 +2,7 @@
 	"Initialize for AtCoder": {
 		"scope": "rust",
 		"prefix": "init",
-		"body": "#![allow(unused_must_use, non_snake_case, unused_labels, unused_imports, non_upper_case_globals)]\nuse external::*;\nuse cplib::prelude::*;\nuse nest as vec;\nconst INTERACTIVE: bool = false;\n// const INTERACTIVE: bool = true; use input_interactive as input;\n#[allow(dead_code)] type Mint = ac_library::ModInt998244353;\n\nfn solve() {\n\tinput! {\n\t\t$1\n\t}\n\t\n\t$0\n}\n\n\n\nfn main() { out::init(INTERACTIVE || !SUBMISSION); solve(); out::print(); }\n"
+		"body": "#![allow(unused_must_use, non_snake_case, unused_labels, unused_imports, non_upper_case_globals)]\nuse external::*;\nuse cplib::prelude::*;\nuse nest as vec;\nconst INTERACTIVE: bool = false;\n// const INTERACTIVE: bool = true; use input_interactive as input;\n#[allow(unused)] type Mint = ac_library::ModInt998244353;\n#[allow(unused)] macro_rules! fp { (\\$x:expr) => { Mint::new(\\$x) }; }\n\nfn solve() {\n\tinput! {\n\t\t$1\n\t}\n\t\n\t$0\n}\n\n\n\nfn main() {\n\tout::init(INTERACTIVE || LOCAL);\n\t// input! { T: usize } for _ in 0..T { solve(); }\n\tsolve();\n\tout::print();\n}\n"
 	},
 	
 	"crate::epr": {
@@ -77,19 +77,6 @@
 		]
 	},
 	
-	"Sub Input": {
-		"scope": "rust",
-		"prefix": "snp_sub_input",
-		"body": [
-			"let stdin = std::io::read_to_string(std::io::stdin()).unwrap();",
-			"let mut stdin = stdin.split_whitespace();",
-			"macro_rules! input { (\\$t:ty) => { stdin.next().unwrap().parse::<\\$t>().unwrap() }; }",
-			"#[allow(unused_macros)]",
-			"macro_rules! input_vec { (\\$t:ty; \\$n:expr) => { (0..\\$n).map(|_| stdin.next().unwrap().parse::<\\$t>().unwrap()).collect::<Vec<_>>() }; }",
-			"$0"
-		]
-	},
-	
 	"define new SegtreeOp": {
 		"scope": "rust",
 		"prefix": "snp_segtree",
@@ -104,12 +91,33 @@
 			"\tfn prod_value(l: &Self::Value, r: &Self::Value) -> Self::Value {",
 			"\t\t",
 			"\t}",
-			"\tfn act_value(value: &mut Self::Value, lazy: &Self::Lazy) -> bool {",
+			"\tfn id_lazy() -> Self::Lazy {",
+			"\t\t",
+			"\t}",
+			"\tfn act(value: &mut Self::Value, lazy: &Self::Lazy) {",
 			"\t\t",
 			"\t}",
 			"\tfn prod_lazy(f: &mut Self::Lazy, ad: &Self::Lazy) {",
 			"\t\t",
 			"\t}",
+			"}",
+		]
+	},
+	
+	"Warshall-Floyd": {
+		"scope": "rust",
+		"prefix": "snp_warshall_floyd",
+		"body": [
+			"macro_rules! upd {",
+			"\t(\\$k:expr) => {",
+			"\t\tlet k = \\$k;",
+			"\t\tfor i in 0..N {",
+			"\t\t\tfor j in 0..N {",
+			"\t\t\t\tchmin!(E[i][j]; E[i][k] + E[k][j]);",
+			"\t\t\t\tchmax!(E[i][j]; -1i64<<60);",
+			"\t\t\t}",
+			"\t\t}",
+			"\t};",
 			"}",
 		]
 	}

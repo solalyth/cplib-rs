@@ -117,7 +117,7 @@ impl<Op: Abelian> UnionFind<Op> {
     
     /// `res[i] = { j | leader(j) == i }`
     pub fn groups(&mut self) -> Vec<Vec<usize>> {
-        let mut res = crate::nest![void; self.len()];
+        let mut res = vec![vec![]; self.len()];
         for i in 0..self.len() { res[self.leader(i)].push(i); }
         res
     }
@@ -141,13 +141,8 @@ impl<Op: Abelian> Clone for UnionFind<Op> {
 
 impl<Op: Abelian> std::fmt::Debug for UnionFind<Op> where Op::T: Debug {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let g = self.clone().groups();
         let mut s = String::new();
-        if std::any::type_name::<Op::T>() == "()" {
-            for g in g { if !g.is_empty() { s += &format!("{g:?}, "); } }
-        } else {
-            panic!();
-        }
+        for g in self.clone().groups() { if !g.is_empty() { s += &format!("{g:?}, "); } }
         write!(f, "[ {} ]", &s[..s.len()-2])
     }
 }
