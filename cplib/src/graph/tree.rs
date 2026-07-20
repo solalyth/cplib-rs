@@ -1,5 +1,3 @@
-use std::ops::Index;
-
 use crate::cplib::ds::csr::Edge;
 
 /// 木の pre-order と Euler Tour を計算する構造体。Heavy-Light Decomposition を同時に行う。
@@ -222,7 +220,7 @@ impl Tree {
     }
 }
 
-impl Index<usize> for Tree {
+impl std::ops::Index<usize> for Tree {
     type Output = [usize];
     fn index(&self, i: usize) -> &Self::Output { &self.edge[i] }
 }

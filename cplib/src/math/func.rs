@@ -47,8 +47,8 @@ macro_rules! extgcd {
 /// 
 /// # Constraints
 /// 
-/// - if `b == 0`
-/// - if not `|a|, |b| < 3.03e9 < sqrt(i64::MAX)`
+/// - `b != 0`
+/// - `|a|, |b| < 3.03e9 < sqrt(i64::MAX)`
 /// 
 /// # Verify
 /// 
@@ -168,3 +168,15 @@ pub fn into_uv([x, y]: [i128; 2], p: i128, q: i128) -> [i128; 2] {
 //     for i in 0..v.len() { if v[i] != i { return i; } }
 //     v.len()
 // }
+
+
+
+pub fn safe_binom(n: usize, mut k: usize) -> usize {
+    if n < k { return 0; }
+    if n-k < k { k = n-k; }
+    let mut r = 1usize;
+    for i in 0..k {
+        if let Some(x) = r.checked_mul(n-i) { r = x/(i+1); } else { return 1<<60; }
+    }
+    r
+}

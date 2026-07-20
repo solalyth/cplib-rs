@@ -26,10 +26,11 @@ pub trait SegtreeOp: Sized {
     
     
     fn segtree_new(len: usize) -> Segtree<Self> { Segtree::new(len) }
-    fn segtree_from_iter(iter: impl ExactSizeIterator<Item = Self::Value>) -> Segtree<Self> {
+    fn segtree_from_iter(iter: impl IntoIterator<IntoIter: ExactSizeIterator<Item = impl std::borrow::Borrow<Self::Value>>>) -> Segtree<Self> {
+        let iter = iter.into_iter();
         let mut seg = Segtree::new(iter.len());
         let len = seg.len();
-        for (i, v) in iter.enumerate() { seg.tree[len+i] = v; }
+        for (i, v) in iter.enumerate() { seg.tree[len+i] = v.borrow().clone(); }
         for i in (1..len).rev() { seg.update(i); }
         seg
     }

@@ -7,9 +7,11 @@ macro_rules! nest {
     // void が打ちやすくて void になってしまっているが、変すぎる。
     [void; $n:expr $(;$m:expr)+] => { std::vec![crate::nest![void$(;$m)+]; $n] };
     
+    [($ev:expr) for $i:ident in $rg:expr] => { $rg.into_iter().map(|$i| $ev).collect::<Vec<_>>() };
+    
     [$($v:expr),*] => { std::vec![$($v),*] };
     [$e:expr; $n:expr] => { std::vec![$e; $n] };
-    [$e:expr; $n:expr $(;$m:expr)+] => { std::vec![crate::nest![$e$(;$m)+]; $n] };
+    [$e:expr; $n:expr $(;$m:expr)+] => { std::vec![crate::nest![$e $(;$m)+]; $n] };
 }
 
 #[macro_export]
@@ -78,13 +80,13 @@ macro_rules! vadd {
 }
 
 /// for modint
-// #[macro_export]
-// macro_rules! o {
-//     ($x:expr, += $y:expr) => { let t = $y; $x = $x+t; };
-//     ($x:expr, -= $y:expr) => { let t = $y; $x = $x-t; };
-//     ($x:expr, *= $y:expr) => { let t = $y; $x = $x*t; };
-//     ($x:expr, /= $y:expr) => { let t = $y; $x = $x/t; };
-// }
+#[macro_export]
+macro_rules! o {
+    ($x:expr, += $y:expr) => { let t = $y; $x = $x+t; };
+    ($x:expr, -= $y:expr) => { let t = $y; $x = $x-t; };
+    ($x:expr, *= $y:expr) => { let t = $y; $x = $x*t; };
+    ($x:expr, /= $y:expr) => { let t = $y; $x = $x/t; };
+}
 
 
 

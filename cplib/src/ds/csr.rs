@@ -29,7 +29,7 @@ impl Edge {
         for i in 0..=n { idx[i+1] += idx[i]; }
         
         let mut dat = vec![0; idx.pop().unwrap()];
-        for (i, j) in iter.into_iter() {
+        for (i, j) in iter {
             dat[idx[i+1]] = j; idx[i+1] += 1;
             if und && i != j { dat[idx[j+1]] = i; idx[j+1] += 1; }
         }

@@ -5,7 +5,7 @@ pub struct BitVec {
 }
 
 impl BitVec {
-    fn new(v: &mut [usize], b: u32, buf: &mut [Vec<usize>; 2]) -> Self {
+    fn new(v: &mut [usize], b: usize, buf: &mut [Vec<usize>; 2]) -> Self {
         let mut bit = vec![];
         let mut sum = vec![0];
         
@@ -50,36 +50,40 @@ impl BitVec {
 /// 
 /// クエリの処理中は区間を変更できないため、自由度が小さいほうを区間にするとよい。
 pub struct WaveletMatrix {
-    /// dat[i]: layer[i+1] から layer[i] への遷移で i bit 目を見る
+    /// `dat[i]`: `layer[i+1]` から `layer[i]` への遷移で `i` bit 目を見る
     pub dat: Vec<BitVec>
 }
 
 impl WaveletMatrix {
     pub fn new_auto(v: Vec<usize>) -> Self {
         let b = v.iter().max().unwrap_or(&0).max(&1).ilog2()+1; // ceil(log2)
-        Self::new(v, b)
+        Self::new(v, b as usize)
     }
     
-    pub fn new(mut v: Vec<usize>, b: u32) -> Self {
+    pub fn new(mut v: Vec<usize>, b: usize) -> Self {
         let mut buf = [vec![], vec![]];
         let mut dat = vec![];
         
         for b in (0..b).rev() {
             dat.push(BitVec::new(&mut v, b, &mut buf));
+            // crate::epr!("{b}: {v:?}");
         }
         dat.reverse();
+        // for b in 0..b {
+        //     crate::epr!("{b}: c0={}", dat[b].c0);
+        // }
         Self { dat }
     }
     
     pub fn b(&self) -> usize { self.dat.len() }
     pub fn xsup(&self) -> usize { 1<<self.b() }
     
-    pub fn get_pos(&self, mut i: usize) -> Vec<usize> {
+    pub fn get_pos(&self, mut i: usize, x: usize) -> Vec<usize> {
         let b = self.b();
         let mut res = vec![0; b+1]; res[b] = i;
         for b in (0..b).rev() {
-            let l0 = self.dat[b].rank(i)[0];
-            if i>>b&1 == 0 { i = l0; } else { i = self.dat[b].c0+i-l0; }
+            let [l0, l1] = self.dat[b].rank(i);
+            if x>>b&1 == 0 { i = l0; } else { i = self.dat[b].c0+l1; }
             res[b] = i;
         }
         res

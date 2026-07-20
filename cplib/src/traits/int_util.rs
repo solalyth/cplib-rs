@@ -1,5 +1,8 @@
-pub fn floor<T: IntUtil>(l: T, r: T) -> T { l.floor(r).0 }
+// pub fn floor<T: IntUtil>(l: T, r: T) -> T { l.floor(r).0 }
+// pub fn floor_rem<T: IntUtil>(l: T, r: T) -> T { l.floor(r).1 }
 pub fn ceil<T: IntUtil>(l: T, r: T) -> T { l.ceil(r).0 }
+pub fn ceil_rem<T: IntUtil>(l: T, r: T) -> T { l.ceil(r).1 }
+
 
 pub trait IntUtil: Sized {
     fn floor(self, rhs: Self) -> (Self, Self);

@@ -2,7 +2,7 @@
 	"Initialize for AtCoder": {
 		"scope": "rust",
 		"prefix": "init",
-		"body": "#![allow(unused_must_use, non_snake_case, unused_labels, unused_imports, non_upper_case_globals)]\nuse external::*;\nuse cplib::prelude::*;\nuse nest as vec;\nconst INTERACTIVE: bool = false;\n// const INTERACTIVE: bool = true; use input_interactive as input;\n#[allow(unused)] type Mint = ac_library::ModInt998244353;\n#[allow(unused)] macro_rules! fp { (\\$x:expr) => { Mint::new(\\$x) }; }\n\nfn solve() {\n\tinput! {\n\t\t$1\n\t}\n\t\n\t$0\n}\n\n\n\nfn main() {\n\tout::init(INTERACTIVE || LOCAL);\n\t// input! { T: usize } for _ in 0..T { solve(); }\n\tsolve();\n\tout::print();\n}\n"
+		"body": "#![allow(unused_must_use, non_snake_case, unused_labels, unused_imports, non_upper_case_globals)]\nuse external::*;\nuse cplib::prelude::*;\nuse nest as vec;\nconst INTERACTIVE: bool = false;\n// const INTERACTIVE: bool = true; use input_interactive as input;\n#[allow(unused)] type Mint = ac_library::ModInt998244353;\n#[allow(unused)] macro_rules! fp { (\\$x:expr) => { Mint::new(\\$x) }; }\n\nfn solve() {\n\tinput! {\n\t\t$1\n\t}\n\t\n\t$0\n}\n\n\n\nfn main() {\n\tout::init(INTERACTIVE || LOCAL);\n\tlet _T = 1;\n\t// input! { _T: usize }\n\tfor _ in 0.._T { solve(); }\n\tout::print();\n}\n"
 	},
 	
 	"crate::epr": {
@@ -113,11 +113,25 @@
 			"\t\tlet k = \\$k;",
 			"\t\tfor i in 0..N {",
 			"\t\t\tfor j in 0..N {",
-			"\t\t\t\tchmin!(E[i][j]; E[i][k] + E[k][j]);",
-			"\t\t\t\tchmax!(E[i][j]; -1i64<<60);",
+			"\t\t\t\tchmax!(E[i][j]; (E[i][k]+E[k][j]).max(-1i64<<60));",
 			"\t\t\t}",
 			"\t\t}",
 			"\t};",
+			"}",
+		]
+	},
+	
+	"Bellman-Ford": {
+		"scope": "rust",
+		"prefix": "snp_bellman_ford",
+		"body": [
+			"let inf = 1i64<<60;",
+			"let mut d = vec![inf; N];",
+			"",
+			"for n in 0..2*N {",
+			"\tfor &(u, v, w) in &E {",
+			"\t\tif chmin!(d[v]; (d[u]+w).max(-inf)) && N <= n { d[v] = -inf; }",
+			"\t}",
 			"}",
 		]
 	}

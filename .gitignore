@@ -4,6 +4,7 @@
 /src/
 /target/
 /in
+/out
 /library.rs
 
 Cargo.lock

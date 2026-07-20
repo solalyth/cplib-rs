@@ -14,6 +14,8 @@ pub mod algo {
     
     pub mod func;
     
+    pub mod lis;
+    
     // pub mod seq;
 }
 
@@ -40,15 +42,20 @@ pub mod ds {
     // pub mod convex_hull_trick_set;
     // pub mod disjoint_sparse_table;
     
-    // pub mod wavelet_matrix;
+    pub mod wavelet_matrix;
     
     // pub mod rolling_hash_deque;
     // pub mod priority_queue;
 }
 
 
-pub mod geo {
-    pub mod vector_i64;
+// pub mod geo_float {
+//     pub mod base;
+// }
+
+pub mod geo_int {
+    pub mod base;
+    pub mod convex_hull;
 }
 
 
@@ -57,7 +64,6 @@ pub mod graph {
     pub mod tree;
     pub mod centroid;
     pub mod cartesian_tree;
-    
 }
 
 
@@ -71,6 +77,7 @@ pub mod math {
     pub mod minplus_convolution;
     
     pub mod digit_decomp;
+    pub mod binom_sum;
 }
 
 

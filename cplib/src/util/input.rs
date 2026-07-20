@@ -38,6 +38,7 @@ impl Scan {
     
     pub fn char() -> char { next() }
     pub fn usize() -> usize { next() }
+    pub fn usize1() -> usize { Scan::usize()-1 }
     pub fn u64() -> u64 { next() }
     pub fn i64() -> i64 { next() }
     pub fn string() -> String { next() }

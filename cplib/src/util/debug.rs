@@ -87,8 +87,8 @@ macro_rules! table {
 macro_rules! print_bits {
     ($x:expr, $n:expr) => {
         let mut s = String::new();
-        let mut n = ($n+3)/4*4;
-        for i in 0..n {
+        assert!($n%4 == 0 && ($x as u64) < (1<<$n));
+        for i in 0..$n {
             if i%4 == 0 { s.push('_'); }
             s.push(if $x>>i & 1 == 0 {'0'} else {'1'});
         }
